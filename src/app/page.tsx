@@ -30,21 +30,30 @@ export default async function HomePage() {
         
         {/* 画像エリア（2枚並び） */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="h-48 md:h-56 w-full rounded-lg overflow-hidden bg-gray-100">
+          <div className="h-48 md:h-56 w-full rounded-lg overflow-hidden bg-gray-100 border">
             <img src="/space1.JPG" alt="スペース画像1" className="w-full h-full object-cover" />
           </div>
-          <div className="h-48 md:h-56 w-full rounded-lg overflow-hidden bg-gray-100">
-            <img src="/space1.JPG" alt="スペース画像2" className="w-full h-full object-cover" />
+          <div className="h-48 md:h-56 w-full rounded-lg overflow-hidden bg-gray-100 border">
+            <img src="/space2.JPG" alt="スペース画像2" className="w-full h-full object-cover" />
           </div>
         </div>
 
-        {/* スペース情報 */}
-        <div className="space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">COCOKARA レンタルスペース</h1>
-          <p className="text-gray-500 text-sm">会議や各種イベント、教室利用に最適なレンタルスペースです。</p>
-          <p className="text-xl font-bold text-gray-800 pt-2">
-            ¥1,500 <span className="text-sm font-normal text-gray-500">/時間</span>
+        {/* スペース情報・修正した料金案内 */}
+        <div className="space-y-3">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">COCOKARA レンタルスペース</h1>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            アミューズメントポーカーテーブル完備！ポーカーイベント、各種撮影、ボードゲーム会、教室利用などに最適な完全プライベート空間です。
           </p>
+
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-emerald-950 space-y-1">
+            <p className="font-bold text-base">💰 利用料金プラン</p>
+            <p className="text-sm font-semibold">
+              ・基本料金（1〜6時間まで）： <span className="text-lg font-bold text-emerald-700">¥15,000</span>
+            </p>
+            <p className="text-sm font-semibold">
+              ・6時間超過分： <span className="text-emerald-700">1時間につき +¥2,500</span>
+            </p>
+          </div>
         </div>
 
         {spaces && spaces.length > 0 && (
@@ -54,7 +63,7 @@ export default async function HomePage() {
 
               return (
                 <div key={space.id} className="mt-6 border-t pt-6">
-                  <h2 className="text-base font-bold text-gray-700 mb-4">予約空き状況 (2週間)</h2>
+                  <h2 className="text-base font-bold text-gray-800 mb-4">予約空き状況 (2週間)</h2>
                   
                   {/* カレンダー */}
                   <div className="grid grid-cols-7 gap-2 text-center text-xs">
@@ -65,7 +74,7 @@ export default async function HomePage() {
                       const isSaturday = date.getDay() === 6
 
                       const hasBooking = spaceBookings.some((b) =>
-                        b.booking_date === dateStr || b.start_time?.startsWith(dateStr)
+                        b.date === dateStr || b.booking_date === dateStr || b.start_time?.startsWith(dateStr)
                       )
 
                       return (
@@ -80,7 +89,7 @@ export default async function HomePage() {
                           <div className="text-gray-500 text-[11px] my-1">
                             {date.getMonth() + 1}/{date.getDate()}
                           </div>
-                          <div className="text-base text-gray-400 mt-1">
+                          <div className="text-base font-bold text-gray-500 mt-1">
                             {hasBooking ? '△' : '◎'}
                           </div>
                         </Link>

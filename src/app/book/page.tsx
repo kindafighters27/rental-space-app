@@ -8,7 +8,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// 選択できる時間リスト
 const timeOptions = [
   { label: '06:00', value: '06:00' },
   { label: '07:00', value: '07:00' },
@@ -45,6 +44,23 @@ function formatDbTime(timeStr: string) {
   return `${timeStr}:00`
 }
 
+// 料金計算ロジック（6時間まで15,000円、超過1時間ごとに2,500円）
+function calculatePrice(start: string, end: string) {
+  const startHour = parseInt(start.split(':')[0], 10)
+  const endHour = parseInt(end.split(':')[0], 10)
+  const duration = endHour - startHour
+
+  if (duration <= 0) return { duration: 0, price: 0 }
+
+  if (duration <= 6) {
+    return { duration, price: 15000 }
+  } else {
+    const extraHours = duration - 6
+    const price = 15000 + extraHours * 2500
+    return { duration, price }
+  }
+}
+
 function BookingForm() {
   const searchParams = useSearchParams()
   const spaceId = searchParams.get('space_id')
@@ -55,11 +71,12 @@ function BookingForm() {
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [startTime, setStartTime] = useState('19:00')
-  const [endTime, setEndTime] = useState('21:00')
+  const [endTime, setEndTime] = useState('25:00')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
-  // スペース情報と、その日の既存予約一覧を取得
+  const { duration, price } = calculatePrice(startTime, endTime)
+
   useEffect(() => {
     if (spaceId) {
       supabase.from('spaces').select('*').eq('id', spaceId).single()
@@ -77,6 +94,11 @@ function BookingForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (duration <= 0) {
+      alert('終了時間は開始時間より後の時間を選択してください。')
+      return
+    }
 
     if (!userName || !userEmail) {
       alert('お名前とメールアドレスを入力してください。')
@@ -113,9 +135,10 @@ function BookingForm() {
     return (
       <div className="bg-white p-8 rounded-xl shadow-md text-center space-y-4 max-w-md mx-auto border border-gray-200">
         <h2 className="text-2xl font-bold text-emerald-600">予約が完了しました！</h2>
-        <p className="text-gray-700 text-sm">
-          ご予約時間: <span className="font-bold text-gray-900">{startTime} 〜 {endTime}</span>
-        </p>
+        <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-800 space-y-1">
+          <p>ご予約時間: <span className="font-bold">{startTime} 〜 {endTime} ({duration}時間)</span></p>
+          <p>ご利用料金: <span className="font-bold text-emerald-600 text-lg">¥{price.toLocaleString()}</span></p>
+        </div>
         <p className="text-gray-600 text-xs">ご予約ありがとうございます。当日お会いできるのを楽しみにしております。</p>
         <a
           href="/"
@@ -213,9 +236,26 @@ function BookingForm() {
           </div>
         </div>
 
+        {/* リアルタイム料金計算表示 */}
+        <div className="bg-gray-100 p-4 rounded-lg border border-gray-200 text-center">
+          {duration > 0 ? (
+            <div>
+              <p className="text-xs text-gray-600 font-medium">利用時間: {duration} 時間</p>
+              <p className="text-2xl font-bold text-emerald-700 mt-1">
+                ¥{price.toLocaleString()}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                {duration <= 6 ? '（6時間基本プラン）' : `（基本15,000円 ＋ 超過${duration - 6}時間分）`}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-red-500 font-bold">正しく時間を指定してください</p>
+          )}
+        </div>
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || duration <= 0}
           className="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition duration-200 mt-6 disabled:opacity-50"
         >
           {loading ? '送信中...' : '予約を確定する'}
