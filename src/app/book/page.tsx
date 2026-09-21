@@ -49,7 +49,7 @@ function formatDbTime(timeStr: string) {
 function BookingForm() {
   const searchParams = useSearchParams()
   const spaceId = searchParams.get('space_id')
-  const date = searchParams.get('date')
+  const selectedDate = searchParams.get('date')
 
   const [space, setSpace] = useState<any>(null)
   const [userName, setUserName] = useState('')
@@ -76,16 +76,17 @@ function BookingForm() {
 
     setLoading(true)
 
-    // DB用に時間を安全なフォーマットに変換
     const dbStartTime = formatDbTime(startTime)
     const dbEndTime = formatDbTime(endTime)
 
+    // DBの「date列」「booking_date列」の両方に日付を渡すことでエラーを解消
     const { error } = await supabase.from('bookings').insert([
       {
         space_id: spaceId,
         user_name: userName,
         user_email: userEmail,
-        booking_date: date,
+        date: selectedDate,
+        booking_date: selectedDate,
         start_time: dbStartTime,
         end_time: dbEndTime,
       },
@@ -131,7 +132,7 @@ function BookingForm() {
       {space && (
         <div className="bg-emerald-50 text-emerald-900 p-3 rounded-lg text-sm mb-6 border border-emerald-200">
           <p className="font-bold">{space.name}</p>
-          <p>予約日: <span className="font-semibold">{date}</span></p>
+          <p>予約日: <span className="font-semibold">{selectedDate}</span></p>
         </div>
       )}
 
