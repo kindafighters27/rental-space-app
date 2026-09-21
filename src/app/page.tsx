@@ -5,95 +5,100 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export default async function BookPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ space_id?: string; date?: string }>
-}) {
-  const params = await searchParams
-  const spaceId = params.space_id
-  const date = params.date
+export const revalidate = 0
 
-  // スペース情報の取得
-  let space = null
-  if (spaceId) {
-    const { data } = await supabase
-      .from('spaces')
-      .select('*')
-      .eq('id', spaceId)
-      .single()
-    space = data
+// 今日から14日分の日付配列を生成する関数
+function generateTwoWeeksDates() {
+  const dates = []
+  const today = new Date()
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    dates.push(d)
   }
+  return dates
+}
+
+export default async function HomePage() {
+  // スペース取得
+  const { data: spaces } = await supabase.from('spaces').select('*')
+  // 予約データ取得
+  const { data: bookings } = await supabase.from('bookings').select('*')
+
+  const dates = generateTwoWeeksDates()
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-8 text-gray-800">
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <Link href="/" className="text-sm text-blue-600 hover:underline mb-4 inline-block">
-          ← カレンダーに戻る
-        </Link>
+    <main className="min-h-screen bg-gray-100 p-4 md:p-8 text-gray-800">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-center">COCOKARA レンタルスペース</h1>
 
-        <h1 className="text-xl font-bold mb-4">予約申し込み</h1>
+        <div className="space-y-6">
+          {spaces && spaces.map((space) => {
+            const spaceBookings = bookings?.filter((b) => b.space_id === space.id) || []
 
-        {space ? (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-            <h2 className="font-bold text-gray-800">{space.name}</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              料金: ¥{Number(space.price_per_hour).toLocaleString()} / 時間
-            </p>
-            <p className="text-sm font-bold text-emerald-600 mt-2">
-              選択日: {date}
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500 mb-4">スペース情報が見つかりません。</p>
-        )}
+            return (
+              <div key={space.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+                {/* メイン写真 */}
+                {space.image_url && (
+                  <div className="h-64 w-full bg-gray-200 overflow-hidden">
+                    <img
+                      src={space.image_url}
+                      alt={space.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
 
-        {/* 簡易予約入力フォーム */}
-        <form className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              お名前
-            </label>
-            <input
-              type="text"
-              placeholder="山田 太郎"
-              className="w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              required
-            />
-          </div>
+                <div className="p-6">
+                  <h2 className="text-xl font-bold mb-2">{space.name}</h2>
+                  <p className="text-gray-600 text-sm mb-4">{space.description}</p>
+                  <p className="text-xl font-bold text-emerald-600 mb-6">
+                    ¥{Number(space.price_per_hour).toLocaleString()} <span className="text-sm text-gray-500 font-normal">/時間</span>
+                  </p>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              メールアドレス
-            </label>
-            <input
-              type="email"
-              placeholder="example@email.com"
-              className="w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              required
-            />
-          </div>
+                  {/* 2週間カレンダーエリア */}
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-bold text-gray-700 mb-3">予約空き状況 (日付クリックで予約)</h3>
+                    <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                      {dates.map((date, idx) => {
+                        const dateStr = date.toISOString().split('T')[0]
+                        const dayName = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()]
+                        const isSunday = date.getDay() === 0
+                        const isSaturday = date.getDay() === 6
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              利用時間帯
-            </label>
-            <select className="w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option>10:00 〜 12:00</option>
-              <option>12:00 〜 14:00</option>
-              <option>14:00 〜 16:00</option>
-              <option>16:00 〜 18:00</option>
-              <option>18:00 〜 20:00</option>
-            </select>
-          </div>
+                        const hasBooking = spaceBookings.some((b) =>
+                          b.start_time?.startsWith(dateStr)
+                        )
 
-          <button
-            type="button"
-            className="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition"
-          >
-            予約を確定する
-          </button>
-        </form>
+                        return (
+                          <Link
+                            key={idx}
+                            href={`/book?space_id=${space.id}&date=${dateStr}`}
+                            className="border rounded p-2 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-500 transition cursor-pointer flex flex-col justify-between"
+                          >
+                            <div className={`font-semibold ${isSunday ? 'text-red-500' : isSaturday ? 'text-blue-500' : 'text-gray-600'}`}>
+                              {dayName}
+                            </div>
+                            <div className="text-gray-800 my-1">
+                              {date.getMonth() + 1}/{date.getDate()}
+                            </div>
+                            <div className="text-base font-bold mt-1">
+                              {hasBooking ? (
+                                <span className="text-amber-500">△</span>
+                              ) : (
+                                <span className="text-emerald-500">◎</span>
+                              )}
+                            </div>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </main>
   )
