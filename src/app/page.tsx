@@ -93,10 +93,10 @@ function BookingForm() {
     return (
       <div className="bg-white p-8 rounded-xl shadow-md text-center space-y-4 max-w-md mx-auto border border-gray-200">
         <h2 className="text-2xl font-bold text-emerald-600">予約が完了しました！</h2>
-        <p className="text-gray-600 text-sm">
-          ご予約時間: <span className="font-bold">{startTime} 〜 {endTime}</span>
+        <p className="text-gray-700 text-sm">
+          ご予約時間: <span className="font-bold text-gray-900">{startTime} 〜 {endTime}</span>
         </p>
-        <p className="text-gray-500 text-xs">ご予約ありがとうございます。当日お会いできるのを楽しみにしております。</p>
+        <p className="text-gray-600 text-xs">ご予約ありがとうございます。当日お会いできるのを楽しみにしております。</p>
         <Link href="/" className="inline-block mt-4 bg-gray-800 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-700 transition">
           トップページに戻る
         </Link>
@@ -106,13 +106,13 @@ function BookingForm() {
 
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-md max-w-md mx-auto border border-gray-200">
-      <Link href="/" className="text-sm text-gray-500 hover:text-gray-800 mb-4 inline-block">
+      <Link href="/" className="text-sm text-gray-600 hover:text-gray-900 mb-4 inline-block font-medium">
         ← カレンダーに戻る
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">予約申し込み</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">予約申し込み</h1>
       {space && (
-        <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-sm mb-6 border border-emerald-200">
+        <div className="bg-emerald-50 text-emerald-900 p-3 rounded-lg text-sm mb-6 border border-emerald-200">
           <p className="font-bold">{space.name}</p>
           <p>予約日: <span className="font-semibold">{date}</span></p>
         </div>
@@ -120,53 +120,53 @@ function BookingForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">お名前</label>
+          <label className="block text-sm font-bold text-gray-800 mb-1">お名前</label>
           <input
             type="text"
             required
             placeholder="山田 太郎"
             value={userName}
             onChange={(e) => setUserName(e.target.value)}
-            className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 bg-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">メールアドレス</label>
+          <label className="block text-sm font-bold text-gray-800 mb-1">メールアドレス</label>
           <input
             type="email"
             required
             placeholder="example@email.com"
             value={userEmail}
             onChange={(e) => setUserEmail(e.target.value)}
-            className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 bg-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
           />
         </div>
 
         {/* 開始時間と終了時間の選択 */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">開始時間</label>
+            <label className="block text-sm font-bold text-gray-800 mb-1">開始時間</label>
             <select
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="w-full border rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+              className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-semibold"
             >
               {timeOptions.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+                <option key={t.value} value={t.value} className="text-gray-900">{t.label}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">終了時間</label>
+            <label className="block text-sm font-bold text-gray-800 mb-1">終了時間</label>
             <select
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="w-full border rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+              className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-semibold"
             >
               {timeOptions.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+                <option key={t.value} value={t.value} className="text-gray-900">{t.label}</option>
               ))}
             </select>
           </div>
@@ -187,7 +187,7 @@ function BookingForm() {
 export default function BookPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 flex items-center justify-center">
-      <Suspense fallback={<div>読み込み中...</div>}>
+      <Suspense fallback={<div className="text-gray-800 font-bold">読み込み中...</div>}>
         <BookingForm />
       </Suspense>
     </main>
