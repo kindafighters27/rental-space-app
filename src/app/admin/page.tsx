@@ -7,13 +7,15 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// ここで管理者パスワードを設定できます（お好きな文字に変更可能）
+const ADMIN_PASSWORD = 'COCOKARA2026'
+
 // 料金計算関数
 function calculatePrice(start: string, end: string) {
   if (!start || !end) return { duration: 0, price: 0 }
   const startHour = parseInt(start.split(':')[0], 10)
   let endHour = parseInt(end.split(':')[0], 10)
   
-  // 深夜帯の計算補助（終了時刻が開始時刻より小さい場合は翌日扱い）
   if (endHour < startHour) endHour += 24
 
   const duration = endHour - startHour
@@ -27,8 +29,31 @@ function calculatePrice(start: string, end: string) {
 }
 
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [inputPassword, setInputPassword] = useState('')
   const [bookings, setBookings] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+
+  // ログイン状態をブラウザに一時記憶させる（再読み込みしてもパスワードを維持）
+  useEffect(() => {
+    const auth = sessionStorage.getItem('admin_auth')
+    if (auth === 'true') {
+      setIsAuthenticated(true)
+      fetchBookings()
+    }
+  }, [])
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (inputPassword === ADMIN_PASSWORD) {
+      setIsAuthenticated(true)
+      sessionStorage.setItem('admin_auth', 'true')
+      fetchBookings()
+    } else {
+      alert('パスワードが間違っています。')
+      setInputPassword('')
+    }
+  }
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -45,10 +70,6 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchBookings()
-  }, [])
-
   const handleDelete = async (id: number) => {
     if (!confirm('この予約をキャンセル（削除）してもよろしいですか？')) return
 
@@ -61,6 +82,42 @@ export default function AdminPage() {
     }
   }
 
+  // 🔒 パスワード未入力の場合のログイン画面
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl shadow-md border border-gray-200 max-w-sm w-full space-y-4">
+          <div className="text-center space-y-1">
+            <h1 className="text-xl font-bold text-gray-900">管理者ログイン</h1>
+            <p className="text-xs text-gray-500">パスワードを入力してください</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-3">
+            <input
+              type="password"
+              placeholder="パスワード"
+              value={inputPassword}
+              onChange={(e) => setInputPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 bg-white outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+              autoFocus
+            />
+            <button
+              type="submit"
+              className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 transition"
+            >
+              ログイン
+            </button>
+          </form>
+          <div className="text-center pt-2">
+            <a href="/" className="text-xs text-emerald-700 hover:underline font-medium">
+              ← トップページに戻る
+            </a>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // 🔓 認証成功後の管理者ダッシュボード画面
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8 text-gray-800">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -69,12 +126,23 @@ export default function AdminPage() {
             <h1 className="text-2xl font-bold text-gray-900">管理者ダッシュボード</h1>
             <p className="text-sm text-gray-500">予約一覧の確認・キャンセル管理ができます</p>
           </div>
-          <a
-            href="/"
-            className="text-sm font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200 transition"
-          >
-            ← トップページを見る
-          </a>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('admin_auth')
+                setIsAuthenticated(false)
+              }}
+              className="text-sm font-semibold text-red-600 hover:text-red-800 bg-red-50 px-4 py-2 rounded-lg border border-red-200 transition"
+            >
+              ログアウト
+            </button>
+            <a
+              href="/"
+              className="text-sm font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200 transition"
+            >
+              トップページを見る
+            </a>
+          </div>
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
