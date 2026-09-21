@@ -8,7 +8,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// 選択できる時間リスト（06:00 〜 深夜04:00（28:00）まで対応）
 const timeOptions = [
   { label: '06:00', value: '06:00' },
   { label: '07:00', value: '07:00' },
@@ -106,7 +105,6 @@ function BookingForm() {
 
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-md max-w-md mx-auto border border-gray-200">
-      {/* 確実に動くように標準の <a> タグに変更 */}
       <a
         href="/"
         className="text-sm text-emerald-700 hover:text-emerald-900 mb-4 inline-flex items-center font-bold hover:underline"

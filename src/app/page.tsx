@@ -1,7 +1,3 @@
-'use client'
-
-import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 
@@ -9,187 +5,95 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// 選択できる時間リスト（06:00 〜 深夜04:00（28:00）まで対応）
-const timeOptions = [
-  { label: '06:00', value: '06:00' },
-  { label: '07:00', value: '07:00' },
-  { label: '08:00', value: '08:00' },
-  { label: '09:00', value: '09:00' },
-  { label: '10:00', value: '10:00' },
-  { label: '11:00', value: '11:00' },
-  { label: '12:00', value: '12:00' },
-  { label: '13:00', value: '13:00' },
-  { label: '14:00', value: '14:00' },
-  { label: '15:00', value: '15:00' },
-  { label: '16:00', value: '16:00' },
-  { label: '17:00', value: '17:00' },
-  { label: '18:00', value: '18:00' },
-  { label: '19:00', value: '19:00' },
-  { label: '20:00', value: '20:00' },
-  { label: '21:00', value: '21:00' },
-  { label: '22:00', value: '22:00' },
-  { label: '23:00', value: '23:00' },
-  { label: '24:00 (翌0:00)', value: '24:00' },
-  { label: '25:00 (翌1:00)', value: '25:00' },
-  { label: '26:00 (翌2:00)', value: '26:00' },
-  { label: '27:00 (翌3:00)', value: '27:00' },
-  { label: '28:00 (翌4:00)', value: '28:00' },
-]
+export const revalidate = 0
 
-function BookingForm() {
-  const searchParams = useSearchParams()
-  const spaceId = searchParams.get('space_id')
-  const date = searchParams.get('date')
-
-  const [space, setSpace] = useState<any>(null)
-  const [userName, setUserName] = useState('')
-  const [userEmail, setUserEmail] = useState('')
-  const [startTime, setStartTime] = useState('19:00')
-  const [endTime, setEndTime] = useState('21:00')
-  const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
-
-  useEffect(() => {
-    if (spaceId) {
-      supabase.from('spaces').select('*').eq('id', spaceId).single()
-        .then(({ data }) => setSpace(data))
-    }
-  }, [spaceId])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (startTime >= endTime) {
-      alert('終了時間は開始時間より後の時間を選択してください。')
-      return
-    }
-
-    setLoading(true)
-
-    const startDateTime = `${date}T${startTime}:00`
-    const endDateTime = `${date}T${endTime}:00`
-
-    const { error } = await supabase.from('bookings').insert([
-      {
-        space_id: spaceId,
-        user_name: userName,
-        user_email: userEmail,
-        booking_date: date,
-        start_time: startDateTime,
-        end_time: endDateTime,
-      },
-    ])
-
-    setLoading(false)
-
-    if (error) {
-      alert('予約に失敗しました: ' + error.message)
-    } else {
-      setDone(true)
-    }
+function generateTwoWeeksDates() {
+  const dates = []
+  const today = new Date()
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    dates.push(d)
   }
-
-  if (done) {
-    return (
-      <div className="bg-white p-8 rounded-xl shadow-md text-center space-y-4 max-w-md mx-auto border border-gray-200">
-        <h2 className="text-2xl font-bold text-emerald-600">予約が完了しました！</h2>
-        <p className="text-gray-700 text-sm">
-          ご予約時間: <span className="font-bold text-gray-900">{startTime} 〜 {endTime}</span>
-        </p>
-        <p className="text-gray-600 text-xs">ご予約ありがとうございます。当日お会いできるのを楽しみにしております。</p>
-        <Link href="/" className="inline-block mt-4 bg-gray-800 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-700 transition">
-          トップページに戻る
-        </Link>
-      </div>
-    )
-  }
-
-  return (
-    <div className="bg-white p-6 md:p-8 rounded-xl shadow-md max-w-md mx-auto border border-gray-200">
-      <Link href="/" className="text-sm text-gray-600 hover:text-gray-900 mb-4 inline-block font-medium">
-        ← カレンダーに戻る
-      </Link>
-
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">予約申し込み</h1>
-      {space && (
-        <div className="bg-emerald-50 text-emerald-900 p-3 rounded-lg text-sm mb-6 border border-emerald-200">
-          <p className="font-bold">{space.name}</p>
-          <p>予約日: <span className="font-semibold">{date}</span></p>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-bold text-gray-800 mb-1">お名前</label>
-          <input
-            type="text"
-            required
-            placeholder="山田 太郎"
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 bg-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-gray-800 mb-1">メールアドレス</label>
-          <input
-            type="email"
-            required
-            placeholder="example@email.com"
-            value={userEmail}
-            onChange={(e) => setUserEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 bg-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
-          />
-        </div>
-
-        {/* 開始時間と終了時間の選択 */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1">開始時間</label>
-            <select
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-semibold"
-            >
-              {timeOptions.map((t) => (
-                <option key={t.value} value={t.value} className="text-gray-900">{t.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1">終了時間</label>
-            <select
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-semibold"
-            >
-              {timeOptions.map((t) => (
-                <option key={t.value} value={t.value} className="text-gray-900">{t.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition duration-200 mt-6 disabled:opacity-50"
-        >
-          {loading ? '送信中...' : '予約を確定する'}
-        </button>
-      </form>
-    </div>
-  )
+  return dates
 }
 
-export default function BookPage() {
+export default async function HomePage() {
+  const { data: spaces } = await supabase.from('spaces').select('*')
+  const { data: bookings } = await supabase.from('bookings').select('*')
+
+  const dates = generateTwoWeeksDates()
+
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-8 flex items-center justify-center">
-      <Suspense fallback={<div className="text-gray-800 font-bold">読み込み中...</div>}>
-        <BookingForm />
-      </Suspense>
+    <main className="min-h-screen bg-gray-50 p-4 md:p-8 text-gray-800">
+      <div className="max-w-4xl mx-auto space-y-8 bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-200">
+        
+        {/* 画像エリア（2枚並び） */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-48 md:h-56 w-full rounded-lg overflow-hidden bg-gray-100">
+            <img src="/space1.JPG" alt="スペース画像1" className="w-full h-full object-cover" />
+          </div>
+          <div className="h-48 md:h-56 w-full rounded-lg overflow-hidden bg-gray-100">
+            <img src="/space1.JPG" alt="スペース画像2" className="w-full h-full object-cover" />
+          </div>
+        </div>
+
+        {/* スペース情報 */}
+        <div className="space-y-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">COCOKARA レンタルスペース</h1>
+          <p className="text-gray-500 text-sm">会議や各種イベント、教室利用に最適なレンタルスペースです。</p>
+          <p className="text-xl font-bold text-gray-800 pt-2">
+            ¥1,500 <span className="text-sm font-normal text-gray-500">/時間</span>
+          </p>
+        </div>
+
+        {spaces && spaces.length > 0 && (
+          <div>
+            {spaces.map((space) => {
+              const spaceBookings = bookings?.filter((b) => b.space_id === space.id) || []
+
+              return (
+                <div key={space.id} className="mt-6 border-t pt-6">
+                  <h2 className="text-base font-bold text-gray-700 mb-4">予約空き状況 (2週間)</h2>
+                  
+                  {/* カレンダー */}
+                  <div className="grid grid-cols-7 gap-2 text-center text-xs">
+                    {dates.map((date, idx) => {
+                      const dateStr = date.toISOString().split('T')[0]
+                      const dayName = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()]
+                      const isSunday = date.getDay() === 0
+                      const isSaturday = date.getDay() === 6
+
+                      const hasBooking = spaceBookings.some((b) =>
+                        b.booking_date === dateStr || b.start_time?.startsWith(dateStr)
+                      )
+
+                      return (
+                        <Link
+                          key={idx}
+                          href={`/book?space_id=${space.id}&date=${dateStr}`}
+                          className="border border-gray-200 rounded-lg p-3 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-500 transition cursor-pointer flex flex-col justify-between items-center block"
+                        >
+                          <div className={`font-semibold ${isSunday ? 'text-red-500' : isSaturday ? 'text-blue-500' : 'text-gray-600'}`}>
+                            {dayName}
+                          </div>
+                          <div className="text-gray-500 text-[11px] my-1">
+                            {date.getMonth() + 1}/{date.getDate()}
+                          </div>
+                          <div className="text-base text-gray-400 mt-1">
+                            {hasBooking ? '△' : '◎'}
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+      </div>
     </main>
   )
 }
