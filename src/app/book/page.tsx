@@ -65,35 +65,23 @@ function BookingForm() {
     setLoading(true)
 
     const startDateTime = `${date}T${startTime}:00`
+    const endDateTime = `${date}T${endTime}:00`
 
-    // どのデータベース構成でも確実にエラーを回避して保存する処理
-    let { error } = await supabase.from('bookings').insert([
+    const { error } = await supabase.from('bookings').insert([
       {
         space_id: spaceId,
         user_name: userName,
         user_email: userEmail,
+        booking_date: date,
         start_time: startDateTime,
+        end_time: endDateTime,
       },
     ])
-
-    // もしbooking_date列が存在するDB用のフォールバック処理
-    if (error && error.message.includes('booking_date')) {
-      const retry = await supabase.from('bookings').insert([
-        {
-          space_id: spaceId,
-          user_name: userName,
-          user_email: userEmail,
-          booking_date: date,
-          start_time: startDateTime,
-        },
-      ])
-      error = retry.error
-    }
 
     setLoading(false)
 
     if (error) {
-      alert('予約に失敗しました: ' + error.message)
+      alert('予約エラー: ' + error.message)
     } else {
       setDone(true)
     }
