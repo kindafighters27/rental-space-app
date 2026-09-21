@@ -154,12 +154,12 @@ function BookingForm() {
   if (done) {
     return (
       <div className="bg-white p-8 rounded-xl shadow-md text-center space-y-4 max-w-md mx-auto border border-gray-200">
-        <h2 className="text-2xl font-bold text-emerald-600">予約が完了しました！</h2>
+        <h2 className="text-2xl font-bold text-emerald-600">仮予約が完了しました！</h2>
         <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-800 space-y-1">
           <p>ご予約時間: <span className="font-bold">{startTime} 〜 {endTime} ({duration}時間)</span></p>
           <p>ご利用料金: <span className="font-bold text-emerald-600 text-lg">¥{price.toLocaleString()}</span></p>
         </div>
-        <p className="text-gray-600 text-xs">ご予約ありがとうございます。当日お会いできるのを楽しみにしております。</p>
+        <p className="text-gray-600 text-xs">仮予約ありがとうございます。入力されたメールアドレスにメールを送りますので、それで予約完了とさせて頂きます。</p>
         <a
           href="/"
           className="inline-block mt-4 bg-gray-800 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
