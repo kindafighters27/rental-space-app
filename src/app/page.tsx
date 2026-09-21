@@ -56,6 +56,7 @@ export default async function HomePage() {
                 <div key={space.id} className="mt-6 border-t pt-6">
                   <h2 className="text-base font-bold text-gray-700 mb-4">予約空き状況 (2週間)</h2>
                   
+                  {/* カレンダー */}
                   <div className="grid grid-cols-7 gap-2 text-center text-xs">
                     {dates.map((date, idx) => {
                       const dateStr = date.toISOString().split('T')[0]
@@ -68,9 +69,10 @@ export default async function HomePage() {
                       )
 
                       return (
-                        <div
+                        <Link
                           key={idx}
-                          className="border border-gray-200 rounded-lg p-3 bg-gray-50 flex flex-col justify-between items-center"
+                          href={`/book?space_id=${space.id}&date=${dateStr}`}
+                          className="border border-gray-200 rounded-lg p-3 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-500 transition cursor-pointer flex flex-col justify-between items-center block"
                         >
                           <div className={`font-semibold ${isSunday ? 'text-red-500' : isSaturday ? 'text-blue-500' : 'text-gray-600'}`}>
                             {dayName}
@@ -81,7 +83,7 @@ export default async function HomePage() {
                           <div className="text-base text-gray-400 mt-1">
                             {hasBooking ? '△' : '◎'}
                           </div>
-                        </div>
+                        </Link>
                       )
                     })}
                   </div>
