@@ -25,75 +25,74 @@ export default async function HomePage() {
   const dates = generateTwoWeeksDates()
 
   return (
-    <main className="min-h-screen bg-gray-100 p-4 md:p-8 text-gray-800">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-center">COCOKARA レンタルスペース</h1>
+    <main className="min-h-screen bg-gray-50 p-4 md:p-8 text-gray-800">
+      <div className="max-w-4xl mx-auto space-y-8 bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-200">
+        
+        {/* 画像エリア（2枚並び） */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-48 md:h-56 w-full rounded-lg overflow-hidden bg-gray-100">
+            <img src="/space1.JPG" alt="スペース画像1" className="w-full h-full object-cover" />
+          </div>
+          <div className="h-48 md:h-56 w-full rounded-lg overflow-hidden bg-gray-100">
+            <img src="/space1.JPG" alt="スペース画像2" className="w-full h-full object-cover" />
+          </div>
+        </div>
 
-        <div className="space-y-6">
-          {spaces && spaces.map((space) => {
-            const spaceBookings = bookings?.filter((b) => b.space_id === space.id) || []
+        {/* スペース情報 */}
+        <div className="space-y-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">COCOKARA レンタルスペース</h1>
+          <p className="text-gray-500 text-sm">会議や各種イベント、教室利用に最適なレンタルスペースです。</p>
+          <p className="text-xl font-bold text-gray-800 pt-2">
+            ¥1,500 <span className="text-sm font-normal text-gray-500">/時間</span>
+          </p>
+        </div>
 
-            return (
-              <div key={space.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-                {space.image_url && (
-                  <div className="h-64 w-full bg-gray-200 overflow-hidden">
-                    <img
-                      src={space.image_url}
-                      alt={space.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
+        {spaces && spaces.length > 0 && (
+          <div>
+            {spaces.map((space) => {
+              const spaceBookings = bookings?.filter((b) => b.space_id === space.id) || []
 
-                <div className="p-6">
-                  <h2 className="text-xl font-bold mb-2">{space.name}</h2>
-                  <p className="text-gray-600 text-sm mb-4">{space.description}</p>
-                  <p className="text-xl font-bold text-emerald-600 mb-6">
-                    ¥{Number(space.price_per_hour).toLocaleString()} <span className="text-sm text-gray-500 font-normal">/時間</span>
-                  </p>
+              return (
+                <div key={space.id} className="mt-6 border-t pt-6">
+                  <h2 className="text-base font-bold text-gray-700 mb-4">予約空き状況 (2週間)</h2>
+                  
+                  {/* カレンダーグリッド（7列×2行） */}
+                  <div className="grid grid-cols-7 gap-2 text-center text-xs">
+                    {dates.map((date, idx) => {
+                      const dateStr = date.toISOString().split('T')[0]
+                      const dayName = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()]
+                      const isSunday = date.getDay() === 0
+                      const isSaturday = date.getDay() === 6
 
-                  <div className="border-t pt-4">
-                    <h3 className="text-sm font-bold text-gray-700 mb-3">予約空き状況 (日付クリックで予約)</h3>
-                    <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                      {dates.map((date, idx) => {
-                        const dateStr = date.toISOString().split('T')[0]
-                        const dayName = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()]
-                        const isSunday = date.getDay() === 0
-                        const isSaturday = date.getDay() === 6
+                      const hasBooking = spaceBookings.some((b) =>
+                        b.booking_date === dateStr || b.start_time?.startsWith(dateStr)
+                      )
 
-                        const hasBooking = spaceBookings.some((b) =>
-                          b.booking_date === dateStr || b.start_time?.startsWith(dateStr)
-                        )
-
-                        return (
-                          <Link
-                            key={idx}
-                            href={`/book?space_id=${space.id}&date=${dateStr}`}
-                            className="border rounded p-2 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-500 transition cursor-pointer flex flex-col justify-between block"
-                          >
-                            <div className={`font-semibold ${isSunday ? 'text-red-500' : isSaturday ? 'text-blue-500' : 'text-gray-600'}`}>
-                              {dayName}
-                            </div>
-                            <div className="text-gray-800 my-1">
-                              {date.getMonth() + 1}/{date.getDate()}
-                            </div>
-                            <div className="text-base font-bold mt-1">
-                              {hasBooking ? (
-                                <span className="text-amber-500">△</span>
-                              ) : (
-                                <span className="text-emerald-500">◎</span>
-                              )}
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
+                      return (
+                        <Link
+                          key={idx}
+                          href={`/book?space_id=${space.id}&date=${dateStr}`}
+                          className="border border-gray-200 rounded-lg p-3 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-500 transition cursor-pointer flex flex-col justify-between items-center"
+                        >
+                          <div className={`font-semibold ${isSunday ? 'text-red-500' : isSaturday ? 'text-blue-500' : 'text-gray-600'}`}>
+                            {dayName}
+                          </div>
+                          <div className="text-gray-500 text-[11px] my-1">
+                            {date.getMonth() + 1}/{date.getDate()}
+                          </div>
+                          <div className="text-base text-gray-400 mt-1">
+                            {hasBooking ? '△' : '◎'}
+                          </div>
+                        </Link>
+                      )
+                    })}
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
+
       </div>
     </main>
   )
