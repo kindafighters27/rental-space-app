@@ -35,7 +35,6 @@ const timeOptions = [
   { label: '28:00 (翌4:00)', value: '28:00' },
 ]
 
-// 24時を超える表記（25:00など）をDBが受け取れる時間（01:00:00など）に変換する関数
 function formatDbTime(timeStr: string) {
   const hour = parseInt(timeStr.split(':')[0], 10)
   if (hour >= 24) {
@@ -52,19 +51,29 @@ function BookingForm() {
   const selectedDate = searchParams.get('date')
 
   const [space, setSpace] = useState<any>(null)
+  const [existingBookings, setExistingBookings] = useState<any[]>([])
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [startTime, setStartTime] = useState('19:00')
-  const [endTime, setEndTime] = useState('25:00')
+  const [endTime, setEndTime] = useState('21:00')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
+  // スペース情報と、その日の既存予約一覧を取得
   useEffect(() => {
     if (spaceId) {
       supabase.from('spaces').select('*').eq('id', spaceId).single()
         .then(({ data }) => setSpace(data))
     }
-  }, [spaceId])
+
+    if (selectedDate) {
+      supabase.from('bookings').select('*')
+        .or(`date.eq.${selectedDate},booking_date.eq.${selectedDate}`)
+        .then(({ data }) => {
+          if (data) setExistingBookings(data)
+        })
+    }
+  }, [spaceId, selectedDate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,7 +88,6 @@ function BookingForm() {
     const dbStartTime = formatDbTime(startTime)
     const dbEndTime = formatDbTime(endTime)
 
-    // DBの「date列」「booking_date列」の両方に日付を渡すことでエラーを解消
     const { error } = await supabase.from('bookings').insert([
       {
         space_id: spaceId,
@@ -130,11 +138,27 @@ function BookingForm() {
 
       <h1 className="text-2xl font-bold text-gray-900 mb-2">予約申し込み</h1>
       {space && (
-        <div className="bg-emerald-50 text-emerald-900 p-3 rounded-lg text-sm mb-6 border border-emerald-200">
+        <div className="bg-emerald-50 text-emerald-900 p-3 rounded-lg text-sm mb-4 border border-emerald-200">
           <p className="font-bold">{space.name}</p>
           <p>予約日: <span className="font-semibold">{selectedDate}</span></p>
         </div>
       )}
+
+      {/* すでに予約が入っている時間帯を表示 */}
+      <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+        <p className="font-bold mb-1">⚠️ 本日の予約済み時間帯:</p>
+        {existingBookings.length === 0 ? (
+          <p className="text-emerald-700 font-medium">現在、予約はありません（終日空いています）</p>
+        ) : (
+          <ul className="list-disc list-inside space-y-0.5 font-semibold text-amber-800">
+            {existingBookings.map((b, i) => {
+              const start = b.start_time ? b.start_time.slice(0, 5) : '不明'
+              const end = b.end_time ? b.end_time.slice(0, 5) : '不明'
+              return <li key={i}>{start} 〜 {end}（予約済み）</li>
+            })}
+          </ul>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
