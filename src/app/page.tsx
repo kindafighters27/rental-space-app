@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import Link from 'next/link'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -33,7 +34,6 @@ export default async function HomePage() {
 
         <div className="space-y-6">
           {spaces && spaces.map((space) => {
-            // このスペースに関連する予約を抽出
             const spaceBookings = bookings?.filter((b) => b.space_id === space.id) || []
 
             return (
@@ -58,7 +58,7 @@ export default async function HomePage() {
 
                   {/* 2週間カレンダーエリア */}
                   <div className="border-t pt-4">
-                    <h3 className="text-sm font-bold text-gray-700 mb-3">予約空き状況 (2週間)</h3>
+                    <h3 className="text-sm font-bold text-gray-700 mb-3">予約空き状況 (日付クリックで予約)</h3>
                     <div className="grid grid-cols-7 gap-1 text-center text-xs">
                       {dates.map((date, idx) => {
                         const dateStr = date.toISOString().split('T')[0]
@@ -66,13 +66,16 @@ export default async function HomePage() {
                         const isSunday = date.getDay() === 0
                         const isSaturday = date.getDay() === 6
 
-                        // 簡単な予約判定（予約データがあれば△や×を表示）
                         const hasBooking = spaceBookings.some((b) =>
                           b.start_time?.startsWith(dateStr)
                         )
 
                         return (
-                          <div key={idx} className="border rounded p-2 bg-gray-50">
+                          <Link
+                            key={idx}
+                            href={`/book?space_id=${space.id}&date=${dateStr}`}
+                            className="border rounded p-2 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-500 transition cursor-pointer flex flex-col justify-between"
+                          >
                             <div className={`font-semibold ${isSunday ? 'text-red-500' : isSaturday ? 'text-blue-500' : 'text-gray-600'}`}>
                               {dayName}
                             </div>
@@ -86,7 +89,7 @@ export default async function HomePage() {
                                 <span className="text-emerald-500">◎</span>
                               )}
                             </div>
-                          </div>
+                          </Link>
                         )
                       })}
                     </div>
