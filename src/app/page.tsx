@@ -69,7 +69,7 @@ export default async function HomePage() {
                           <Link
                             key={idx}
                             href={`/book?space_id=${space.id}&date=${dateStr}`}
-                            className="border rounded p-2 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-500 transition cursor-pointer flex flex-col justify-between"
+                            className="border rounded p-2 bg-gray-50 hover:bg-emerald-50 hover:border-emerald-500 transition cursor-pointer flex flex-col justify-between block"
                           >
                             <div className={`font-semibold ${isSunday ? 'text-red-500' : isSaturday ? 'text-blue-500' : 'text-gray-600'}`}>
                               {dayName}
