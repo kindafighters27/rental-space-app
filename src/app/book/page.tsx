@@ -64,8 +64,9 @@ function BookingForm() {
 
     setLoading(true)
 
-    const startDateTime = `${date}T${startTime}:00`
-    const endDateTime = `${date}T${endTime}:00`
+    // 時間のみのフォーマット（19:00:00）にして型エラーを防止
+    const formattedStartTime = `${startTime}:00`
+    const formattedEndTime = `${endTime}:00`
 
     const { error } = await supabase.from('bookings').insert([
       {
@@ -73,8 +74,8 @@ function BookingForm() {
         user_name: userName,
         user_email: userEmail,
         booking_date: date,
-        start_time: startDateTime,
-        end_time: endDateTime,
+        start_time: formattedStartTime,
+        end_time: formattedEndTime,
       },
     ])
 
