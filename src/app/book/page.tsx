@@ -44,7 +44,6 @@ function formatDbTime(timeStr: string) {
   return `${timeStr}:00`
 }
 
-// 料金計算ロジック（6時間まで15,000円、超過1時間ごとに2,500円）
 function calculatePrice(start: string, end: string) {
   const startHour = parseInt(start.split(':')[0], 10)
   const endHour = parseInt(end.split(':')[0], 10)
@@ -110,6 +109,7 @@ function BookingForm() {
     const dbStartTime = formatDbTime(startTime)
     const dbEndTime = formatDbTime(endTime)
 
+    // 1. データベースに予約を保存
     const { error } = await supabase.from('bookings').insert([
       {
         space_id: spaceId,
@@ -122,13 +122,33 @@ function BookingForm() {
       },
     ])
 
-    setLoading(false)
-
     if (error) {
+      setLoading(false)
       alert('予約エラー: ' + error.message)
-    } else {
-      setDone(true)
+      return
     }
+
+    // 2. 管理者へメールを送信
+    try {
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userName,
+          userEmail,
+          date: selectedDate,
+          startTime,
+          endTime,
+          duration,
+          price,
+        }),
+      })
+    } catch (mailError) {
+      console.error('メール送信に失敗しました:', mailError)
+    }
+
+    setLoading(false)
+    setDone(true)
   }
 
   if (done) {
@@ -167,7 +187,6 @@ function BookingForm() {
         </div>
       )}
 
-      {/* すでに予約が入っている時間帯を表示 */}
       <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
         <p className="font-bold mb-1">⚠️ 本日の予約済み時間帯:</p>
         {existingBookings.length === 0 ? (
@@ -236,7 +255,6 @@ function BookingForm() {
           </div>
         </div>
 
-        {/* リアルタイム料金計算表示 */}
         <div className="bg-gray-100 p-4 rounded-lg border border-gray-200 text-center">
           {duration > 0 ? (
             <div>
@@ -258,7 +276,7 @@ function BookingForm() {
           disabled={loading || duration <= 0}
           className="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition duration-200 mt-6 disabled:opacity-50"
         >
-          {loading ? '送信中...' : '予約を確定する'}
+          {loading ? '予約送信中...' : '予約を確定する'}
         </button>
       </form>
     </div>
