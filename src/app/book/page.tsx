@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
-import Link from 'next/link'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -38,7 +37,6 @@ const timeOptions = [
 
 function BookingForm() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const spaceId = searchParams.get('space_id')
   const date = searchParams.get('date')
 
@@ -69,22 +67,20 @@ function BookingForm() {
 
     const startDateTime = `${date}T${startTime}:00`
 
-    // Supabaseへの登録（カラムの不一致エラーを防ぐため互換性を持たせた登録）
-    const bookingData: any = {
-      space_id: spaceId,
-      user_name: userName,
-      user_email: userEmail,
-      booking_date: date,
-      start_time: startDateTime,
-    }
-
-    const { error } = await supabase.from('bookings').insert([bookingData])
+    const { error } = await supabase.from('bookings').insert([
+      {
+        space_id: spaceId,
+        user_name: userName,
+        user_email: userEmail,
+        booking_date: date,
+        start_time: startDateTime,
+      },
+    ])
 
     setLoading(false)
 
     if (error) {
-      console.error('予約エラー詳細:', error)
-      alert('予約処理でエラーが発生しました: ' + error.message)
+      alert('予約に失敗しました: ' + error.message)
     } else {
       setDone(true)
     }
@@ -98,21 +94,25 @@ function BookingForm() {
           ご予約時間: <span className="font-bold text-gray-900">{startTime} 〜 {endTime}</span>
         </p>
         <p className="text-gray-600 text-xs">ご予約ありがとうございます。当日お会いできるのを楽しみにしております。</p>
-        <Link
+        <a
           href="/"
           className="inline-block mt-4 bg-gray-800 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
         >
           トップページに戻る
-        </Link>
+        </a>
       </div>
     )
   }
 
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-md max-w-md mx-auto border border-gray-200">
-      <Link href="/" className="text-sm text-gray-600 hover:text-gray-900 mb-4 inline-block font-medium">
+      {/* 確実に動くように標準の <a> タグに変更 */}
+      <a
+        href="/"
+        className="text-sm text-emerald-700 hover:text-emerald-900 mb-4 inline-flex items-center font-bold hover:underline"
+      >
         ← カレンダーに戻る
-      </Link>
+      </a>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-2">予約申し込み</h1>
       {space && (
