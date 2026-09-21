@@ -8,6 +8,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// 選択できる時間リスト
 const timeOptions = [
   { label: '06:00', value: '06:00' },
   { label: '07:00', value: '07:00' },
@@ -34,6 +35,17 @@ const timeOptions = [
   { label: '28:00 (翌4:00)', value: '28:00' },
 ]
 
+// 24時を超える表記（25:00など）をDBが受け取れる時間（01:00:00など）に変換する関数
+function formatDbTime(timeStr: string) {
+  const hour = parseInt(timeStr.split(':')[0], 10)
+  if (hour >= 24) {
+    const adjustedHour = hour - 24
+    const formattedHour = String(adjustedHour).padStart(2, '0')
+    return `${formattedHour}:00:00`
+  }
+  return `${timeStr}:00`
+}
+
 function BookingForm() {
   const searchParams = useSearchParams()
   const spaceId = searchParams.get('space_id')
@@ -43,7 +55,7 @@ function BookingForm() {
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [startTime, setStartTime] = useState('19:00')
-  const [endTime, setEndTime] = useState('21:00')
+  const [endTime, setEndTime] = useState('25:00')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
@@ -64,9 +76,9 @@ function BookingForm() {
 
     setLoading(true)
 
-    // 時間のみのフォーマット（19:00:00）にして型エラーを防止
-    const formattedStartTime = `${startTime}:00`
-    const formattedEndTime = `${endTime}:00`
+    // DB用に時間を安全なフォーマットに変換
+    const dbStartTime = formatDbTime(startTime)
+    const dbEndTime = formatDbTime(endTime)
 
     const { error } = await supabase.from('bookings').insert([
       {
@@ -74,8 +86,8 @@ function BookingForm() {
         user_name: userName,
         user_email: userEmail,
         booking_date: date,
-        start_time: formattedStartTime,
-        end_time: formattedEndTime,
+        start_time: dbStartTime,
+        end_time: dbEndTime,
       },
     ])
 
