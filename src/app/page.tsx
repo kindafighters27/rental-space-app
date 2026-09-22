@@ -1,3 +1,4 @@
+cat << 'EOF' > src/app/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -284,6 +285,24 @@ export default function Home() {
             </div>
           </div>
 
+          {/* アクセス・所在地（Googleマップ）セクション */}
+          <div className="mb-8 border-t border-gray-100 pt-6">
+            <h3 className="text-xs font-bold text-gray-900 mb-2 tracking-wider uppercase">アクセス・所在地</h3>
+            <p className="text-xs text-gray-700 font-semibold mb-4">📍 〒570-0012 大阪府守口市金田町2-1-9 COCOKARA</p>
+            <div className="rounded-xl overflow-hidden border border-gray-200 w-full h-72">
+              <iframe
+                title="COCOKARA Map"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3278.4!2d135.58!3d34.75!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6000e123456789ab%3A0x123456789abcdef!2z大阪府守口市金田町２丁目１−９!5e0!3m2!1sja!2sjp!4v1710000000000!5m2!1sja!2sjp"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={false}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
+          </div>
+
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <h3 className="text-xs font-bold text-amber-900 mb-2">利用料金プラン</h3>
             <ul className="text-xs text-amber-800 space-y-1">
@@ -514,3 +533,4 @@ export default function Home() {
     </main>
   )
 }
+EOF
