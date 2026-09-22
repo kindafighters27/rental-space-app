@@ -57,13 +57,11 @@ export default function BookPage() {
   const timeToMins = (timeStr: string) => {
     if (!timeStr) return 0
     const [h, m] = timeStr.slice(0, 5).split(':').map(Number)
-    // 深夜0時を過ぎる場合（例: 01:00など）の考慮（24時間を超える数値にする）
     const hours = h < 6 ? h + 24 : h
     return hours * 60 + m
   }
 
   const startMins = parseInt(startHour) * 60 + parseInt(startMinute)
-  // 終了時間が深夜（例: 01:00）の場合の対応
   const endHNum = parseInt(endHour)
   const adjustedEndH = endHNum < 6 ? endHNum + 24 : endHNum
   const endMins = adjustedEndH * 60 + parseInt(endMinute)
@@ -71,12 +69,10 @@ export default function BookPage() {
   const startTimeStr = `${startHour}:${startMinute}`
   const endTimeStr = `${endHour}:${endMinute}`
 
-  // 厳密な重複チェック（既存の予約の時間帯と少しでも重なっていたらtrue）
+  // 厳密な重複チェック
   const isOverlap = existingBookings.some((b) => {
     const bStartMins = timeToMins(b.start_time)
     const bEndMins = timeToMins(b.end_time)
-
-    // 重複条件: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
     return startMins < bEndMins && endMins > bStartMins
   })
 
@@ -104,6 +100,7 @@ export default function BookPage() {
 
     setLoading(true)
 
+    // 1. Supabaseへ予約データを挿入
     const { error } = await supabase.from('bookings').insert([
       {
         space_id: spaceId,
@@ -119,10 +116,32 @@ export default function BookPage() {
     if (error) {
       alert('予約に失敗しました: ' + error.message)
       setLoading(false)
-    } else {
-      alert('予約が完了しました！')
-      router.push('/admin')
+      return
     }
+
+    // 2. 自動メール送信APIを呼び出し
+    try {
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: userEmail,
+          userName: userName,
+          spaceName: space?.name || 'レンタルスペース',
+          date: date,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          price: totalPrice,
+        }),
+      })
+    } catch (mailError) {
+      console.error('メール送信に失敗しました:', mailError)
+    }
+
+    alert('予約が完了し、確認メールを送信しました！')
+    router.push('/admin')
   }
 
   return (
@@ -235,7 +254,6 @@ export default function BookPage() {
             <div className="text-2xl font-bold text-emerald-600 mt-1">¥{totalPrice.toLocaleString()}</div>
           </div>
 
-          {/* 時間が被っている場合の警告 */}
           {isOverlap && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-bold">
               ⚠️ 選択された時間帯は、すでに予約が入っている時間と重複しています。別の時間をお選びください。
