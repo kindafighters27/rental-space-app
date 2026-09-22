@@ -8,135 +8,122 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export default function AdminPage() {
-  const [bookings, setBookings] = useState<any[]>([])
-  const [filteredBookings, setFilteredBookings] = useState<any[]>([])
+export default function CustomersPage() {
+  const [customers, setCustomers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('all')
+  const [sortBy, setSortBy] = useState<'latest' | 'count' | 'name'>('latest')
 
   useEffect(() => {
-    fetchBookings()
+    fetchCustomers()
   }, [])
 
-  useEffect(() => {
-    filterBookings()
-  }, [searchTerm, statusFilter, bookings])
-
-  const fetchBookings = async () => {
+  const fetchCustomers = async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, spaces(name)')
+      .select('*')
+      .neq('status', 'cancelled')
       .order('date', { ascending: false })
 
     if (error) {
-      console.error('予約一覧取得エラー:', error)
-    } else {
-      setBookings(data || [])
-      setFilteredBookings(data || [])
+      console.error('顧客データ取得エラー:', error)
+      setLoading(false)
+      return
     }
+
+    // メールアドレスまたは名前をキーにして顧客ごとに集計
+    const customerMap = new Map()
+
+    data?.forEach((b) => {
+      const key = b.email || b.user_name
+      if (!key) return
+
+      if (!customerMap.has(key)) {
+        customerMap.set(key, {
+          name: b.user_name,
+          email: b.email || '未登録',
+          totalBookings: 0,
+          totalSpent: 0,
+          lastBookingDate: b.date,
+        })
+      }
+
+      const customer = customerMap.get(key)
+      customer.totalBookings += 1
+      customer.totalSpent += b.total_price || 0
+      
+      // より新しい日付があれば更新
+      if (b.date > customer.lastBookingDate) {
+        customer.lastBookingDate = b.date
+      }
+    })
+
+    let customerList = Array.from(customerMap.values())
+
+    // ソート処理
+    applySorting(customerList, sortBy)
     setLoading(false)
   }
 
-  const filterBookings = () => {
-    let result = [...bookings]
-
-    // ステータスフィルター
-    if (statusFilter === 'active') {
-      result = result.filter((b) => b.status !== 'cancelled')
-    } else if (statusFilter === 'cancelled') {
-      result = result.filter((b) => b.status === 'cancelled')
+  const applySorting = (list: any[], type: 'latest' | 'count' | 'name') => {
+    if (type === 'latest') {
+      list.sort((a, b) => b.lastBookingDate.localeCompare(a.lastBookingDate))
+    } else if (type === 'count') {
+      list.sort((a, b) => b.totalBookings - a.totalBookings)
+    } else if (type === 'name') {
+      list.sort((a, b) => a.name.localeCompare(b.name, 'ja'))
     }
-
-    // キーワード検索（お名前、メールアドレス、スペース名、日付）
-    if (searchTerm.trim() !== '') {
-      const term = searchTerm.toLowerCase()
-      result = result.filter(
-        (b) =>
-          b.user_name?.toLowerCase().includes(term) ||
-          b.email?.toLowerCase().includes(term) ||
-          b.spaces?.name?.toLowerCase().includes(term) ||
-          b.date?.includes(term)
-      )
-    }
-
-    setFilteredBookings(result)
+    setCustomers([...list])
   }
 
-  const handleCancel = async (id: string) => {
-    if (!confirm('本当にこの予約をキャンセルしますか？')) return
-
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancelled' })
-      .eq('id', id)
-
-    if (error) {
-      alert('キャンセルの失敗しました: ' + error.message)
-    } else {
-      alert('予約をキャンセルしました。')
-      fetchBookings()
-    }
+  const handleSortChange = (type: 'latest' | 'count' | 'name') => {
+    setSortBy(type)
+    applySorting(customers, type)
   }
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
-        <h1 className="text-lg font-bold text-gray-900">管理者ダッシュボード（予約一覧）</h1>
+        <h1 className="text-lg font-bold text-gray-900">顧客リスト（顧客管理）</h1>
         <div className="flex space-x-3">
-          <Link href="/admin/customers" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm">
-            顧客リストを見る
+          <Link href="/admin" className="bg-gray-200 hover:bg-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition">
+            予約一覧へ戻る
           </Link>
-          <button onClick={fetchBookings} className="bg-gray-200 hover:bg-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition">
+          <button onClick={fetchCustomers} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm">
             更新
           </button>
-          <Link href="/" className="bg-gray-800 hover:bg-gray-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition">
-            トップへ
-          </Link>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 mt-8">
-        {/* 検索・フィルターコントロールバー */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="w-full md:w-96">
-            <input
-              type="text"
-              placeholder="お名前、メール、スペース名、日付で検索..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-          <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
-            <span className="text-xs font-bold text-gray-600">ステータス:</span>
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'all' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            >
-              すべて ({bookings.length})
-            </button>
-            <button
-              onClick={() => setStatusFilter('active')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            >
-              有効な予約
-            </button>
-            <button
-              onClick={() => setStatusFilter('cancelled')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'cancelled' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            >
-              キャンセル済み
-            </button>
-          </div>
+        {/* 並び替えコントロールバー */}
+        <div className="flex items-center space-x-2 mb-6">
+          <span className="text-xs font-bold text-gray-600">並び替え:</span>
+          <button
+            onClick={() => handleSortChange('latest')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${sortBy === 'latest' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+          >
+            最近の予約日
+          </button>
+          <button
+            onClick={() => handleSortChange('count')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${sortBy === 'count' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+          >
+            総予約回数
+          </button>
+          <button
+            onClick={() => handleSortChange('name')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${sortBy === 'name' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+          >
+            お名前順
+          </button>
         </div>
 
         {loading ? (
           <div className="text-center py-20 text-gray-500">読み込み中...</div>
-        ) : filteredBookings.length === 0 ? (
+        ) : customers.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center text-gray-500 shadow-sm border border-gray-200">
-            条件に一致する予約データはありません。
+            現在、登録されている顧客データはありません。
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -144,40 +131,21 @@ export default function AdminPage() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
-                    <th className="p-4 font-bold">予約日</th>
-                    <th className="p-4 font-bold">スペース</th>
                     <th className="p-4 font-bold">お名前</th>
                     <th className="p-4 font-bold">メールアドレス</th>
-                    <th className="p-4 font-bold">時間</th>
-                    <th className="p-4 font-bold">金額</th>
-                    <th className="p-4 font-bold">ステータス</th>
-                    <th className="p-4 font-bold text-right">操作</th>
+                    <th className="p-4 font-bold">総予約回数</th>
+                    <th className="p-4 font-bold">利用総額</th>
+                    <th className="p-4 font-bold">直近の予約日</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredBookings.map((b) => (
-                    <tr key={b.id} className={b.status === 'cancelled' ? 'bg-gray-50 text-gray-400 line-through' : 'hover:bg-gray-50'}>
-                      <td className="p-4 font-semibold">{b.date}</td>
-                      <td className="p-4 font-semibold text-gray-900">{b.spaces?.name || '不明なスペース'}</td>
-                      <td className="p-4 font-medium">{b.user_name}</td>
-                      <td className="p-4 text-gray-600">{b.email || '-'}</td>
-                      <td className="p-4">{b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)}</td>
-                      <td className="p-4 font-bold text-emerald-600">¥{(b.total_price || 0).toLocaleString()}</td>
-                      <td className="p-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${b.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {b.status === 'cancelled' ? 'キャンセル済み' : '予約確定'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        {b.status !== 'cancelled' && (
-                          <button
-                            onClick={() => handleCancel(b.id)}
-                            className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
-                          >
-                            キャンセル
-                          </button>
-                        )}
-                      </td>
+                  {customers.map((c, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="p-4 font-bold text-gray-900">{c.name}</td>
+                      <td className="p-4 text-gray-600">{c.email}</td>
+                      <td className="p-4 font-semibold">{c.totalBookings} 回</td>
+                      <td className="p-4 font-bold text-emerald-600">¥{c.totalSpent.toLocaleString()}</td>
+                      <td className="p-4 text-gray-600">{c.lastBookingDate}</td>
                     </tr>
                   ))}
                 </tbody>
