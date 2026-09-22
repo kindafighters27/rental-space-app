@@ -1,3 +1,4 @@
+cat << 'EOF' > src/app/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -251,11 +252,11 @@ export default function Home() {
           <h2 className="text-xl font-extrabold text-gray-900 mb-2">{selectedSpace?.name || 'COCOKARA レンタルスペース'}</h2>
           <p className="text-xs text-gray-600 mb-6">{selectedSpace?.description || '会議や各種イベント、教室利用に最適なレンタルスペースです。'}</p>
 
-          {/* スペースの写真表示エリア（space2.JPG を指定） */}
-          <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 max-h-96 bg-gray-100 flex items-center justify-center">
+          {/* スペースの写真表示エリア（space2.JPG を表示） */}
+          <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center">
             <img
-              src={selectedSpace?.image_url || '/space2.JPG'}
-              alt={selectedSpace?.name || 'スペース写真'}
+              src="/space2.JPG"
+              alt="COCOKARA レンタルスペース"
               className="w-full h-auto object-cover max-h-96"
             />
           </div>
