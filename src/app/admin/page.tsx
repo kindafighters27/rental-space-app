@@ -8,7 +8,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // ここで管理者パスワードを設定できます（お好きな文字に変更可能）
-const ADMIN_PASSWORD = 'COCOKARA2026'
+const ADMIN_PASSWORD = '0509'
 
 // 料金計算関数
 function calculatePrice(start: string, end: string) {
