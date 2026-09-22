@@ -8,164 +8,104 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export default function Home() {
-  const [spaces, setSpaces] = useState<any[]>([])
-  const [selectedSpace, setSelectedSpace] = useState<any>(null)
+export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [password, setPassword] = useState('')
   const [bookings, setBookings] = useState<any[]>([])
-  const [selectedDate, setSelectedDate] = useState<string>('')
-  const [startTime, setStartTime] = useState<string>('')
-  const [endTime, setEndTime] = useState<string>('')
-  const [userName, setUserName] = useState<string>('')
-  const [email, setEmail] = useState<string>('')
+  const [filteredBookings, setFilteredBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
-  // 予約キャンセル用モーダル・入力
-  const [cancelModalOpen, setCancelModalOpen] = useState(false)
-  const [cancelEmail, setCancelEmail] = useState('')
-  const [userBookings, setUserBookings] = useState<any[]>([])
-
-  // パスワード入力用モーダル
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
-  const [inputPassword, setInputPassword] = useState('')
-
-  // 2週間分のカレンダー生成
-  const today = new Date()
-  const twoWeeksDates = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(today.getDate() + i)
-    return d.toISOString().split('T')[0]
-  })
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('active')
 
   useEffect(() => {
-    fetchInitialData()
+    const auth = sessionStorage.getItem('admin_auth')
+    if (auth === 'true') {
+      setIsAuthenticated(true)
+      fetchBookings()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
-  const fetchInitialData = async () => {
+  useEffect(() => {
+    if (isAuthenticated) {
+      filterBookings()
+    }
+  }, [searchTerm, statusFilter, bookings])
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (password === '0509') {
+      setIsAuthenticated(true)
+      sessionStorage.setItem('admin_auth', 'true')
+      fetchBookings()
+    } else {
+      alert('パスワードが間違っています。')
+    }
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    sessionStorage.removeItem('admin_auth')
+    setPassword('')
+  }
+
+  const fetchBookings = async () => {
     setLoading(true)
-    const { data: spacesData } = await supabase.from('spaces').select('*')
-    if (spacesData && spacesData.length > 0) {
-      setSpaces(spacesData)
-      setSelectedSpace(spacesData[0])
-    }
-
-    const { data: bookingsData } = await supabase
-      .from('bookings')
-      .select('*')
-      .neq('status', 'cancelled') // 有効な予約のみ取得
-
-    setBookings(bookingsData || [])
-    setLoading(false)
-  }
-
-  // 24時間（0:00〜24:00）の選択肢
-  const timeOptions = Array.from({ length: 25 }, (_, i) => {
-    const hour = String(i).padStart(2, '0')
-    return `${hour}:00`
-  })
-
-  // 選択された日付・スペースにおける既存予約
-  const currentSpaceBookings = bookings.filter(
-    (b) => b.space_id === selectedSpace?.id && b.date === selectedDate
-  )
-
-  // 選択された開始時間から終了時間にかけて、すでに予約やバッファー（終了後1時間）に抵触していないかチェック
-  const isTimeSlotDisabled = (timeStr: string) => {
-    if (!selectedDate) return false
-    const timeVal = parseInt(timeStr.split(':')[0])
-
-    for (const b of currentSpaceBookings) {
-      const bStart = parseInt(b.start_time.split(':')[0])
-      const bEnd = parseInt(b.end_time.split(':')[0])
-      // 掃除・次のお客様のためのバッファー：終了時間の後1時間は選択不可
-      const bufferedEnd = bEnd + 1
-
-      // 既存の予約時間帯、または終了後1時間以内であれば選択不可
-      if (timeVal >= bStart && timeVal < bufferedEnd) {
-        return true
-      }
-    }
-    return false
-  }
-
-  // 料金計算（1〜6時間：15,000円、6時間超：1時間につき+2,500円）
-  const calculatePrice = (start: string, end: string) => {
-    if (!start || !end) return 0
-    const startHour = parseInt(start.split(':')[0])
-    const endHour = parseInt(end.split(':')[0])
-    const hours = endHour - startHour
-    if (hours <= 0) return 0
-
-    if (hours <= 6) {
-      return 15000
-    } else {
-      return 15000 + (hours - 6) * 2500
-    }
-  }
-
-  const totalPrice = calculatePrice(startTime, endTime)
-
-  const handleBooking = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedDate || !startTime || !endTime || !userName || !email) {
-      alert('すべての項目を入力してください。')
-      return
-    }
-
-    const startH = parseInt(startTime.split(':')[0])
-    const endH = parseInt(endTime.split(':')[0])
-    if (endH <= startH) {
-      alert('終了時間は開始時間より後に設定してください。')
-      return
-    }
-
-    const { error } = await supabase.from('bookings').insert([
-      {
-        space_id: selectedSpace.id,
-        date: selectedDate,
-        start_time: startTime,
-        end_time: endTime,
-        user_name: userName,
-        email: email,
-        total_price: totalPrice,
-        status: 'active',
-        is_confirmed: false,
-      },
-    ])
-
-    if (error) {
-      alert('予約に失敗しました: ' + error.message)
-    } else {
-      alert('予約が完了しました！ご入力いただいたメールアドレスに確認メールが送信されます。')
-      setStartTime('')
-      setEndTime('')
-      setUserName('')
-      setEmail('')
-      setSelectedDate('')
-      fetchInitialData()
-    }
-  }
-
-  const handleSearchUserBookings = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!cancelEmail) return
-
     const { data, error } = await supabase
       .from('bookings')
       .select('*, spaces(name)')
-      .eq('email', cancelEmail)
-      .neq('status', 'cancelled')
+      .order('date', { ascending: false })
 
     if (error) {
-      alert('予約情報の取得に失敗しました。')
+      console.error('予約一覧取得エラー:', error)
     } else {
-      setUserBookings(data || [])
-      if (data?.length === 0) {
-        alert('該当する有効な予約が見つかりませんでした。')
-      }
+      setBookings(data || [])
+      setFilteredBookings(data || [])
+    }
+    setLoading(false)
+  }
+
+  const filterBookings = () => {
+    let result = [...bookings]
+
+    if (statusFilter === 'active') {
+      result = result.filter((b) => b.status !== 'cancelled')
+    } else if (statusFilter === 'cancelled') {
+      result = result.filter((b) => b.status === 'cancelled')
+    }
+
+    if (searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase()
+      result = result.filter(
+        (b) =>
+          b.user_name?.toLowerCase().includes(term) ||
+          b.email?.toLowerCase().includes(term) ||
+          b.spaces?.name?.toLowerCase().includes(term) ||
+          b.date?.includes(term)
+      )
+    }
+
+    setFilteredBookings(result)
+  }
+
+  const handleToggleConfirm = async (id: string, currentConfirmed: boolean) => {
+    const newConfirmed = !currentConfirmed
+    const { error } = await supabase
+      .from('bookings')
+      .update({ is_confirmed: newConfirmed })
+      .eq('id', id)
+
+    if (error) {
+      alert('更新に失敗しました: ' + error.message)
+    } else {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, is_confirmed: newConfirmed } : b))
+      )
     }
   }
 
-  const handleUserCancelBooking = async (id: string) => {
+  const handleCancel = async (id: string) => {
     if (!confirm('本当にこの予約をキャンセルしますか？')) return
 
     const { error } = await supabase
@@ -174,282 +114,172 @@ export default function Home() {
       .eq('id', id)
 
     if (error) {
-      alert('キャンセルの処理に失敗しました。')
+      alert('キャンセルの失敗しました: ' + error.message)
     } else {
       alert('予約をキャンセルしました。')
-      setUserBookings((prev) => prev.filter((b) => b.id !== id))
-      fetchInitialData()
+      fetchBookings()
     }
   }
 
-  const handleAdminLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (inputPassword === '0509') {
-      window.location.href = '/admin'
-    } else {
-      alert('パスワードが間違っています。')
-    }
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 w-full max-w-md">
+          <h1 className="text-lg font-bold text-gray-900 mb-6 text-center">管理者ログイン</h1>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">パスワード</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="パスワードを入力してください"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-xs text-gray-900 font-semibold focus:outline-none focus:border-emerald-500 placeholder:text-gray-400 placeholder:font-normal"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
+            >
+              ログイン
+            </button>
+            <div className="text-center mt-4">
+              <Link href="/" className="text-xs text-gray-500 hover:underline">
+                ← トップページに戻る
+              </Link>
+            </div>
+          </form>
+        </div>
+      </main>
+    )
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-800 pb-16">
-      {/* ヘッダー */}
+    <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
-        <h1 className="text-sm font-bold text-gray-900">COCOKARA レンタルスペース</h1>
+        <h1 className="text-lg font-bold text-gray-900">管理者ダッシュボード（予約一覧）</h1>
         <div className="flex space-x-3 items-center">
-          <button
-            onClick={() => setCancelModalOpen(true)}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs transition"
-          >
-            予約の確認・キャンセル
+          <Link href="/admin/customers" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm">
+            顧客リストを見る
+          </Link>
+          <button onClick={fetchBookings} className="bg-gray-200 hover:bg-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition">
+            更新
           </button>
-          <button
-            onClick={() => setPasswordModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-sm"
-          >
-            管理者ログイン
+          <button onClick={handleLogout} className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-4 py-2 rounded-xl text-xs transition">
+            ログアウト
           </button>
+          <Link href="/" className="bg-gray-800 hover:bg-gray-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition">
+            トップへ
+          </Link>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 mt-8">
-        {/* スペース情報 */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full mb-3">
-            募集中
+      <div className="max-w-7xl mx-auto px-4 mt-8">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="w-full md:w-96">
+            <input
+              type="text"
+              placeholder="お名前、メール、スペース名、日付で検索..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
+            />
           </div>
-          <h2 className="text-xl font-extrabold text-gray-900 mb-2">COCOKARA レンタルスペース</h2>
-          <p className="text-xs text-gray-600 mb-6">会議や各種イベント、教室利用に最適なレンタルスペースです。</p>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-            <h3 className="text-xs font-bold text-amber-900 mb-2">利用料金プラン</h3>
-            <ul className="text-xs text-amber-800 space-y-1">
-              <li>・基本料金（1〜6時間まで）: ¥15,000</li>
-              <li>・6時間超過分: 1時間につき +¥2,500</li>
-            </ul>
-          </div>
-
-          {/* 2週間カレンダー（空き状況：1件=△, 2件以上=×） */}
-          <div>
-            <h3 className="text-xs font-bold text-gray-900 mb-3">予約空き状況（2週間）</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-              {twoWeeksDates.map((dateStr) => {
-                const dayBookings = bookings.filter(
-                  (b) => b.space_id === selectedSpace?.id && b.date === dateStr
-                )
-                const count = dayBookings.length
-
-                let statusText = '空きあり'
-                let statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                if (count === 1) {
-                  statusText = '△ 残りわずか'
-                  statusColor = 'bg-amber-50 text-amber-700 border-amber-200'
-                } else if (count >= 2) {
-                  statusText = '× 満室'
-                  statusColor = 'bg-red-50 text-red-700 border-red-200'
-                }
-
-                return (
-                  <div
-                    key={dateStr}
-                    onClick={() => setSelectedDate(dateStr)}
-                    className={`p-3 rounded-xl border text-center cursor-pointer transition ${
-                      selectedDate === dateStr ? 'ring-2 ring-emerald-500 bg-emerald-50/50' : 'hover:bg-gray-50'
-                    } ${statusColor}`}
-                  >
-                    <div className="text-[11px] font-bold">{dateStr.slice(5)}</div>
-                    <div className="text-[10px] font-semibold mt-1">{statusText}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* 予約フォーム */}
-        {selectedDate && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">
-              ご予約フォーム（選択中: <span className="text-emerald-600">{selectedDate}</span>）
-            </h3>
-            <form onSubmit={handleBooking} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">開始時間</label>
-                  <select
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                    required
-                  >
-                    <option value="">開始時間を選択</option>
-                    {timeOptions.slice(0, 24).map((time) => {
-                      const disabled = isTimeSlotDisabled(time)
-                      return (
-                        <option key={time} value={time} disabled={disabled}>
-                          {time} {disabled ? '（予約不可・バッファー含む）' : ''}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">終了時間</label>
-                  <select
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                    required
-                  >
-                    <option value="">終了時間を選択</option>
-                    {timeOptions.map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">お名前</label>
-                  <input
-                    type="text"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    placeholder="山田 太郎"
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">メールアドレス</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="example@email.com"
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              {totalPrice > 0 && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
-                  <span className="text-xs text-emerald-800 font-bold">お支払い予定金額: </span>
-                  <span className="text-base font-extrabold text-emerald-600">¥{totalPrice.toLocaleString()}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-sm"
-              >
-                予約を確定する
-              </button>
-            </form>
-          </div>
-        )}
-      </div>
-
-      {/* 予約確認・キャンセルモーダル */}
-      {cancelModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">ご予約の確認・キャンセル</h3>
-            <form onSubmit={handleSearchUserBookings} className="space-y-3 mb-4">
-              <label className="block text-xs font-bold text-gray-700">ご登録のメールアドレス</label>
-              <div className="flex space-x-2">
-                <input
-                  type="email"
-                  value={cancelEmail}
-                  onChange={(e) => setCancelEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  className="flex-1 px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition"
-                >
-                  検索
-                </button>
-              </div>
-            </form>
-
-            {userBookings.length > 0 && (
-              <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
-                {userBookings.map((b) => (
-                  <div key={b.id} className="border border-gray-200 rounded-xl p-3 flex justify-between items-center bg-gray-50 text-xs">
-                    <div>
-                      <div className="font-bold text-gray-900">{b.date} ({b.start_time?.slice(0, 5)}〜{b.end_time?.slice(0, 5)})</div>
-                      <div className="text-gray-600">¥{(b.total_price || 0).toLocaleString()}</div>
-                    </div>
-                    <button
-                      onClick={() => handleUserCancelBooking(b.id)}
-                      className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
-                    >
-                      キャンセルする
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
+          <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
+            <span className="text-xs font-bold text-gray-600">ステータス:</span>
             <button
-              onClick={() => {
-                setCancelModalOpen(false)
-                setUserBookings([])
-                setCancelEmail('')
-              }}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 rounded-xl text-xs transition"
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'all' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
-              閉じる
+              すべて ({bookings.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter('active')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              有効な予約
+            </button>
+            <button
+              onClick={() => setStatusFilter('cancelled')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'cancelled' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              キャンセル済み
             </button>
           </div>
         </div>
-      )}
 
-      {/* 管理者ログインモーダル（パスワード文字色をはっきり濃く修正） */}
-      {passwordModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
-            <h3 className="text-sm font-bold text-gray-900 mb-4 text-center">管理者ログイン</h3>
-            <form onSubmit={handleAdminLoginSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">パスワード</label>
-                <input
-                  type="password"
-                  value={inputPassword}
-                  onChange={(e) => setInputPassword(e.target.value)}
-                  placeholder="パスワードを入力"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-xs text-gray-900 font-semibold focus:outline-none focus:border-emerald-500 placeholder:text-gray-400 placeholder:font-normal"
-                  required
-                  autoFocus
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
-              >
-                ログイン
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPasswordModalOpen(false)
-                  setInputPassword('')
-                }}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded-xl text-xs transition"
-              >
-                キャンセル
-              </button>
-            </form>
+        {loading ? (
+          <div className="text-center py-20 text-gray-500">読み込み中...</div>
+        ) : filteredBookings.length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center text-gray-500 shadow-sm border border-gray-200">
+            条件に一致する予約データはありません。
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
+                    <th className="p-4 font-bold">予約日</th>
+                    <th className="p-4 font-bold">スペース</th>
+                    <th className="p-4 font-bold">お名前</th>
+                    <th className="p-4 font-bold">メールアドレス</th>
+                    <th className="p-4 font-bold">時間</th>
+                    <th className="p-4 font-bold">金額</th>
+                    <th className="p-4 font-bold">ステータス / 確定チェック</th>
+                    <th className="p-4 font-bold text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredBookings.map((b) => (
+                    <tr key={b.id} className={b.status === 'cancelled' ? 'bg-gray-50 text-gray-400 line-through' : 'hover:bg-gray-50'}>
+                      <td className="p-4 font-semibold">{b.date}</td>
+                      <td className="p-4 font-semibold text-gray-900">{b.spaces?.name || '不明なスペース'}</td>
+                      <td className="p-4 font-medium">{b.user_name}</td>
+                      <td className="p-4 text-gray-600">{b.email || '-'}</td>
+                      <td className="p-4">{b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)}</td>
+                      <td className="p-4 font-bold text-emerald-600">¥{(b.total_price || 0).toLocaleString()}</td>
+                      <td className="p-4">
+                        {b.status === 'cancelled' ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
+                            キャンセル済み
+                          </span>
+                        ) : (
+                          <div className="flex items-center space-x-3">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                              仮予約
+                            </span>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-gray-50 hover:bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 transition">
+                              <input
+                                type="checkbox"
+                                checked={!!b.is_confirmed}
+                                onChange={() => handleToggleConfirm(b.id, !!b.is_confirmed)}
+                                className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                              />
+                              <span className="font-bold text-gray-700 text-[11px]">予約確定</span>
+                            </label>
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-4 text-right">
+                        {b.status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleCancel(b.id)}
+                            className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
+                          >
+                            キャンセル
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </main>
   )
 }
