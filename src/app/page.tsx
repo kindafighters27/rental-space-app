@@ -21,14 +21,10 @@ export default function Home() {
     const { data: spaceData } = await supabase.from('spaces').select('*')
     if (spaceData) setSpaces(spaceData)
 
-    const { data: bookingData, error } = await supabase
+    const { data: bookingData } = await supabase
       .from('bookings')
       .select('*')
       .neq('status', 'cancelled')
-
-    if (error) {
-      console.error('予約データの取得に失敗しました:', error.message)
-    }
 
     if (bookingData) {
       const validBookings = bookingData.filter(
@@ -87,14 +83,6 @@ export default function Home() {
               顧客リスト
             </a>
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-sm font-bold text-gray-800 mb-2">💰 利用料金プラン</h2>
-          <ul className="text-xs text-gray-600 space-y-1">
-            <li>• 基本料金 (1〜6時間まで): ¥15,000</li>
-            <li>• 6時間超分: 1時間につき +¥2,500</li>
-          </ul>
         </div>
 
         {spaces.map((space) => (
