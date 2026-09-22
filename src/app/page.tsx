@@ -18,11 +18,10 @@ export default function Home() {
 
   const fetchData = async () => {
     setLoading(true)
-    // スペース情報の取得
     const { data: spaceData } = await supabase.from('spaces').select('*')
     if (spaceData) setSpaces(spaceData)
 
-    // 有効な予約のみを取得（キャンセルされたものは除外）
+    // statusがcancelledではない（有効な）予約のみを取得
     const { data: bookingData } = await supabase
       .from('bookings')
       .select('*')
@@ -32,7 +31,7 @@ export default function Home() {
     setLoading(false)
   }
 
-  // 今後2週間の日付リストを生成する関数
+  // 今後2週間の日付リストを生成
   const generateDates = () => {
     const dates = []
     const today = new Date()
@@ -42,7 +41,7 @@ export default function Home() {
       const year = d.getFullYear()
       const month = String(d.getMonth() + 1).padStart(2, '0')
       const day = String(d.getDate()).padStart(2, '0')
-      dates. `${year}-${month}-${day}`
+      dates.push(`${year}-${month}-${day}`)
     }
     return dates
   }
@@ -60,7 +59,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
-        {/* ヘッダーセクション */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">COCOKARA レンタルスペース</h1>
@@ -84,7 +82,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 料金プランのご案内 */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h2 className="text-sm font-bold text-gray-800 mb-2">💰 利用料金プラン</h2>
           <ul className="text-xs text-gray-600 space-y-1">
@@ -93,14 +90,12 @@ export default function Home() {
           </ul>
         </div>
 
-        {/* スペースごとの空き状況・カレンダー */}
         {spaces.map((space) => (
           <div key={space.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <h2 className="text-lg font-bold text-gray-900 mb-4">{space.name} の予約空き状況 (2週間)</h2>
             
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {dates.map((dateStr) => {
-                // この日付、このスペースの有効な予約があるかチェック
                 const dayBookings = bookings.filter(
                   (b) => b.space_id === space.id && b.date === dateStr
                 )
