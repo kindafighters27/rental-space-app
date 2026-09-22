@@ -60,8 +60,8 @@ export default function Home() {
   // 選択中のスペース情報
   const currentSpace = spaces.find((s) => s.id === selectedSpaceId)
 
-  // デフォルトのきれいなポーカー・レンタルスペース画像（DBに画像がない場合のフォールバック）
-  const spaceImage = currentSpace?.image_url || currentSpace?.image || 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1200&q=80'
+  // 📸 publicフォルダにある写真をコードで直接指定（space2.JPG または space1.JPGに変更可能です）
+  const spaceImage = '/space1.JPG'
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
@@ -158,10 +158,7 @@ export default function Home() {
                     return String(bDate).slice(0, 10) === dateStr
                   })
 
-                  // 簡易的な満室判定（もし19:00〜01:00などの丸一日予約や複数予約で埋まっている場合を想定。必要に応じて調整可能）
-                  // ここでは「すでに予約があるかどうか」で判定の目安を出します
                   const isFullyBooked = dayBookings.some((b) => {
-                    // 例として、全時間帯を塞ぐ予約（例: 19:00〜01:00など）がある場合を判定
                     const start = b.start_time?.slice(0, 5)
                     const end = b.end_time?.slice(0, 5)
                     return (start === '19:00' && (end === '01:00' || end === '01:30' || end === '02:00')) || dayBookings.length >= 3
