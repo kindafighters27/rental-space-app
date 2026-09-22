@@ -21,16 +21,22 @@ export default function Home() {
     const { data: spaceData } = await supabase.from('spaces').select('*')
     if (spaceData) setSpaces(spaceData)
 
-    // 有効な予約のみを確実に取得（statusがcancelledではないもの）
-    const { data: bookingData } = await supabase
+    // 有効な（キャンセルされていない）予約のみを厳密に取得
+    const { data: bookingData, error } = await supabase
       .from('bookings')
       .select('*')
-      .or('status.is.null,status.neq.cancelled')
+      .neq('status', 'cancelled')
+
+    if (error) {
+      console.error('予約データの取得に失敗しました:', error.message)
+    }
 
     if (bookingData) {
-      // さらにクライアント側でも確実に cancelled を除外する
-      const activeBookings = bookingData.filter(b => b.status !== 'cancelled')
-      setBookings(activeBookings)
+      // 念のためクライアント側でも cancelled やステータス異常のものを完全に除外
+      const validBookings = bookingData.filter(
+        (b) => b.status !== 'cancelled' && b.status !== 'CANCELED'
+      )
+      setBookings(validBookings)
     }
     setLoading(false)
   }
@@ -100,12 +106,11 @@ export default function Home() {
             
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {dates.map((dateStr) => {
-                // b.date または b.booking_date に一致し、かつアクティブな予約のみをカウント
+                // 有効な予約データの中に、このスペースかつこの日付（date または booking_date）に一致するものがあるかチェック
                 const dayBookings = bookings.filter(
                   (b) => 
                     b.space_id === space.id && 
-                    (b.date === dateStr || b.booking_date === dateStr) &&
-                    b.status !== 'cancelled'
+                    (b.date === dateStr || b.booking_date === dateStr)
                 )
                 const isBooked = dayBookings.length > 0
 
