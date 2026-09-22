@@ -25,7 +25,7 @@ export default function AdminPage() {
 
   const fetchBookings = async () => {
     setLoading(true)
-    // ステータスがキャンセルされていない（または未設定の）予約だけを取得
+    // キャンセルされていない（有効な）予約のみを取得
     const { data, error } = await supabase
       .from('bookings')
       .select('*, spaces(name)')
@@ -33,16 +33,18 @@ export default function AdminPage() {
       .order('date', { ascending: false })
 
     if (error) {
-      console.error('予約データの取得に失敗しました:', error)
-    } else {
-      setBookings(data || [])
+      console.error('予約データの取得に失敗しました:', error.message)
+    } else if (data) {
+      setBookings(data)
     }
     setLoading(false)
   }
 
-  // 削除（キャンセル）ボタン：データを消さずに status を 'cancelled' に更新する
+  // キャンセル処理：確実にSupabaseのstatusを 'cancelled' に更新する
   const handleCancel = async (id: string) => {
-    if (!confirm('この予約をキャンセル（予約管理画面から非表示）にしますか？\n（顧客リストには履歴が残ります）')) return
+    if (!confirm('この予約をキャンセル（予約管理画面から非表示・トップページの空きを復旧）しますか？')) {
+      return
+    }
 
     const { error } = await supabase
       .from('bookings')
@@ -52,7 +54,8 @@ export default function AdminPage() {
     if (error) {
       alert('キャンセル処理に失敗しました: ' + error.message)
     } else {
-      fetchBookings()
+      alert('予約をキャンセルしました')
+      fetchBookings() // リストを再取得して画面を更新
     }
   }
 
@@ -68,14 +71,14 @@ export default function AdminPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none"
                 placeholder="パスワードを入力"
                 required
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 transition"
+              className="w-full bg-emerald-600 text-white font-bold p-2.5 rounded-lg hover:bg-emerald-700 transition"
             >
               ログイン
             </button>
@@ -90,10 +93,10 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">管理者ダッシュボード（予約一覧）</h1>
-          <div className="space-x-4">
+          <div className="space-x-2">
             <a
               href="/admin/customers"
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition"
@@ -108,7 +111,7 @@ export default function AdminPage() {
             </button>
             <a
               href="/"
-              className="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition"
+              className="bg-gray-800 hover:bg-gray-900 text-white font-semibold px-4 py-2 rounded-lg text-sm transition"
             >
               トップへ
             </a>
@@ -118,7 +121,7 @@ export default function AdminPage() {
         {loading ? (
           <p className="text-gray-600 font-medium text-center py-10">読み込み中...</p>
         ) : bookings.length === 0 ? (
-          <div className="bg-white p-8 rounded-xl shadow-md text-center border border-gray-200">
+          <div className="bg-white p-8 rounded-xl shadow-md border border-gray-200 text-center">
             <p className="text-gray-600 font-medium">現在、有効な予約データはありません。</p>
           </div>
         ) : (
@@ -126,7 +129,7 @@ export default function AdminPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-100 border-b border-gray-200 text-gray-700 text-sm">
+                  <tr className="bg-gray-100 border-b border-gray-200 text-sm text-gray-700">
                     <th className="p-3">予約日</th>
                     <th className="p-3">スペース</th>
                     <th className="p-3">お名前</th>
@@ -140,16 +143,16 @@ export default function AdminPage() {
                     const start = b.start_time ? b.start_time.slice(0, 5) : ''
                     const end = b.end_time ? b.end_time.slice(0, 5) : ''
                     return (
-                      <tr key={b.id} className="hover:bg-gray-50">
+                      <tr key={b.id} className="hover:bg-gray-50 transition">
                         <td className="p-3 font-semibold">{b.date || b.booking_date}</td>
                         <td className="p-3">{b.spaces?.name || '不明'}</td>
                         <td className="p-3 font-bold">{b.user_name}</td>
                         <td className="p-3 text-gray-600">{b.user_email}</td>
-                        <td className="p-3">{start} 〜 {end}</td>
+                        <td className="p-3">{start} ～ {end}</td>
                         <td className="p-3 text-right">
                           <button
                             onClick={() => handleCancel(b.id)}
-                            className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1 rounded text-xs transition border border-red-200"
+                            className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg border border-red-200 transition text-xs"
                           >
                             キャンセル
                           </button>
