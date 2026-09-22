@@ -61,7 +61,7 @@ export default function Home() {
   const currentSpace = spaces.find((s) => s.id === selectedSpaceId)
 
   // 📸 publicフォルダにある写真をコードで直接指定（space2.JPG または space1.JPGに変更可能です）
-  const spaceImage = '/space1.JPG'
+  const spaceImage = '/space2.JPG'
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
