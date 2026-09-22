@@ -225,7 +225,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-16">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-40">
         <h1 className="text-sm font-bold text-gray-900">COCOKARA レンタルスペース</h1>
         <div className="flex space-x-3 items-center">
           <button
@@ -244,20 +244,44 @@ export default function Home() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 mt-8">
+        {/* スペース基本情報・写真 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full mb-3">
             募集中
           </div>
-          <h2 className="text-xl font-extrabold text-gray-900 mb-2">{selectedSpace?.name || 'COCOKARA レンタルスペース'}</h2>
-          <p className="text-xs text-gray-600 mb-6">{selectedSpace?.description || '会議や各種イベント、教室利用に最適なレンタルスペースです。'}</p>
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">{selectedSpace?.name || 'COCOKARA レンタルスペース'}</h2>
+          <p className="text-xs text-gray-600 mb-6 leading-relaxed">{selectedSpace?.description || '会議や各種イベント、教室利用に最適なレンタルスペースです。'}</p>
 
-          {/* スペースの写真表示エリア（space2.JPG を表示） */}
           <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center">
             <img
               src="/space2.JPG"
               alt="COCOKARA レンタルスペース"
               className="w-full h-auto object-cover max-h-96"
             />
+          </div>
+
+          {/* 設備・備品・サービス紹介セクション */}
+          <div className="mb-8 border-t border-gray-100 pt-6">
+            <h3 className="text-xs font-bold text-gray-900 mb-4 tracking-wider uppercase">設備・備品・サービス</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              {[
+                { name: '個室（壁・扉あり）', icon: '🚪' },
+                { name: 'トイレ', icon: '🚻' },
+                { name: '電源', icon: '🔌' },
+                { name: 'エアコン（冷暖房）', icon: '❄️' },
+                { name: 'キッチン設備', icon: '🍳' },
+                { name: '飲食可', icon: '🍴' },
+                { name: '飲酒可', icon: '🍷' },
+                { name: '片付けおまかせ', icon: '✨' },
+                { name: 'ゴミ処理おまかせ', icon: '🗑️' },
+                { name: 'Wi-Fi（光回線・他）', icon: '📶' },
+              ].map((item, idx) => (
+                <div key={idx} className="bg-gray-50 border border-gray-200/80 rounded-xl p-3 text-center flex flex-col items-center justify-center transition hover:bg-emerald-50/30 hover:border-emerald-200">
+                  <span className="text-xl mb-1">{item.icon}</span>
+                  <span className="text-[11px] font-semibold text-gray-700">{item.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
