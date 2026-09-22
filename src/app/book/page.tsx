@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useSearchParams, useRouter } from 'next/navigation'
 
@@ -8,7 +8,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export default function BookPage() {
+function BookContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const spaceId = searchParams.get('space_id')
@@ -276,5 +276,13 @@ export default function BookPage() {
         </form>
       </div>
     </main>
+  )
+}
+
+export default function BookPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">読み込み中...</div>}>
+      <BookContent />
+    </Suspense>
   )
 }
