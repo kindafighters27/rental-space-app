@@ -9,6 +9,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [password, setPassword] = useState('')
   const [bookings, setBookings] = useState<any[]>([])
   const [filteredBookings, setFilteredBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -16,12 +18,39 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('all')
 
   useEffect(() => {
-    fetchBookings()
+    // セッションストレージでログイン状態を維持
+    const auth = sessionStorage.getItem('admin_auth')
+    if (auth === 'true') {
+      setIsAuthenticated(true)
+      fetchBookings()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
-    filterBookings()
+    if (isAuthenticated) {
+      filterBookings()
+    }
   }, [searchTerm, statusFilter, bookings])
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    // パスワード認証（必要に応じて変更してください）
+    if (password === 'admin123' || password === 'password') {
+      setIsAuthenticated(true)
+      sessionStorage.setItem('admin_auth', 'true')
+      fetchBookings()
+    } else {
+      alert('パスワードが間違っています。')
+    }
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    sessionStorage.removeItem('admin_auth')
+    setPassword('')
+  }
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -42,14 +71,12 @@ export default function AdminPage() {
   const filterBookings = () => {
     let result = [...bookings]
 
-    // ステータスフィルター
     if (statusFilter === 'active') {
       result = result.filter((b) => b.status !== 'cancelled')
     } else if (statusFilter === 'cancelled') {
       result = result.filter((b) => b.status === 'cancelled')
     }
 
-    // キーワード検索（お名前、メールアドレス、スペース名、日付）
     if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase()
       result = result.filter(
@@ -64,18 +91,16 @@ export default function AdminPage() {
     setFilteredBookings(result)
   }
 
-  // 予約確定チェックボックスの切り替え処理
   const handleToggleConfirm = async (id: string, currentConfirmed: boolean) => {
     const newConfirmed = !currentConfirmed
     const { error } = await supabase
       .from('bookings')
-      .update({ is_confirmed: newConfirmed }) // Supabaseのbookingsテーブルに is_confirmed カラムを追加・使用します
+      .update({ is_confirmed: newConfirmed })
       .eq('id', id)
 
     if (error) {
       alert('更新に失敗しました: ' + error.message)
     } else {
-      // ローカルの状態も更新して即座に画面に反映
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? { ...b, is_confirmed: newConfirmed } : b))
       )
@@ -98,16 +123,59 @@ export default function AdminPage() {
     }
   }
 
+  // -------------------------------------------------------------
+  // パスワード認証画面
+  // -------------------------------------------------------------
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 w-full max-w-md">
+          <h1 className="text-lg font-bold text-gray-900 mb-6 text-center">管理者ログイン</h1>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1">パスワード</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="パスワードを入力してください"
+                className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-emerald-500"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
+            >
+              ログイン
+            </button>
+            <div className="text-center mt-4">
+              <Link href="/" className="text-xs text-gray-500 hover:underline">
+                ← トップページに戻る
+              </Link>
+            </div>
+          </form>
+        </div>
+      </main>
+    )
+  }
+
+  // -------------------------------------------------------------
+  // 管理者ダッシュボード画面本編
+  // -------------------------------------------------------------
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
         <h1 className="text-lg font-bold text-gray-900">管理者ダッシュボード（予約一覧）</h1>
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 items-center">
           <Link href="/admin/customers" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm">
             顧客リストを見る
           </Link>
           <button onClick={fetchBookings} className="bg-gray-200 hover:bg-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition">
             更新
+          </button>
+          <button onClick={handleLogout} className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-4 py-2 rounded-xl text-xs transition">
+            ログアウト
           </button>
           <Link href="/" className="bg-gray-800 hover:bg-gray-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition">
             トップへ
@@ -116,7 +184,6 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 mt-8">
-        {/* 検索・フィルターコントロールバー */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="w-full md:w-96">
             <input
