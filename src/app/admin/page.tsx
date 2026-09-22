@@ -18,7 +18,6 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('all')
 
   useEffect(() => {
-    // セッションストレージでログイン状態を維持
     const auth = sessionStorage.getItem('admin_auth')
     if (auth === 'true') {
       setIsAuthenticated(true)
@@ -36,8 +35,8 @@ export default function AdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    // パスワード認証（必要に応じて変更してください）
-    if (password === 'admin123' || password === 'password') {
+    // パスワードを 0509 に変更
+    if (password === '0509') {
       setIsAuthenticated(true)
       sessionStorage.setItem('admin_auth', 'true')
       fetchBookings()
@@ -123,9 +122,6 @@ export default function AdminPage() {
     }
   }
 
-  // -------------------------------------------------------------
-  // パスワード認証画面
-  // -------------------------------------------------------------
   if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -133,13 +129,13 @@ export default function AdminPage() {
           <h1 className="text-lg font-bold text-gray-900 mb-6 text-center">管理者ログイン</h1>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">パスワード</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1">パスワード</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="パスワードを入力してください"
-                className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-emerald-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-xs text-gray-900 font-semibold focus:outline-none focus:border-emerald-500 placeholder:text-gray-400 placeholder:font-normal"
                 required
               />
             </div>
@@ -160,9 +156,6 @@ export default function AdminPage() {
     )
   }
 
-  // -------------------------------------------------------------
-  // 管理者ダッシュボード画面本編
-  // -------------------------------------------------------------
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
@@ -191,7 +184,7 @@ export default function AdminPage() {
               placeholder="お名前、メール、スペース名、日付で検索..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs focus:outline-none focus:border-emerald-500"
+              className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
             />
           </div>
           <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
