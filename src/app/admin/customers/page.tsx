@@ -15,7 +15,7 @@ export default function CustomersPage() {
   const [filteredCustomers, setFilteredCustomers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState<'latest' | 'count' | 'name'>('latest')
+  const [sortBy, setSortBy] = useState<'latest' | 'count' | 'email' | 'spent'>('latest')
 
   useEffect(() => {
     const auth = sessionStorage.getItem('admin_auth')
@@ -115,8 +115,10 @@ export default function CustomersPage() {
       result.sort((a, b) => (b.lastBookingDate || '').localeCompare(a.lastBookingDate || ''))
     } else if (sortBy === 'count') {
       result.sort((a, b) => b.totalBookings - a.totalBookings)
-    } else if (sortBy === 'name') {
-      result.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja'))
+    } else if (sortBy === 'email') {
+      result.sort((a, b) => (a.email || '').localeCompare(b.email || '', 'ja'))
+    } else if (sortBy === 'spent') {
+      result.sort((a, b) => b.totalSpent - a.totalSpent)
     }
 
     setFilteredCustomers(result)
@@ -184,7 +186,7 @@ export default function CustomersPage() {
               className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
             />
           </div>
-          <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
+          <div className="flex items-center space-x-2 w-full md:w-auto justify-end flex-wrap gap-y-2">
             <span className="text-xs font-bold text-gray-600">並び替え:</span>
             <button
               onClick={() => setSortBy('latest')}
@@ -199,10 +201,16 @@ export default function CustomersPage() {
               総予約回数
             </button>
             <button
-              onClick={() => setSortBy('name')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${sortBy === 'name' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              onClick={() => setSortBy('email')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${sortBy === 'email' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
-              お名前順
+              メールアドレス順
+            </button>
+            <button
+              onClick={() => setSortBy('spent')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${sortBy === 'spent' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              利用金額順
             </button>
           </div>
         </div>
