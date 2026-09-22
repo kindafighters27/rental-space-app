@@ -15,7 +15,7 @@ export default function AdminPage() {
   const [filteredBookings, setFilteredBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('active')
 
   useEffect(() => {
     const auth = sessionStorage.getItem('admin_auth')
@@ -35,7 +35,6 @@ export default function AdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    // パスワードを 0509 に変更
     if (password === '0509') {
       setIsAuthenticated(true)
       sessionStorage.setItem('admin_auth', 'true')

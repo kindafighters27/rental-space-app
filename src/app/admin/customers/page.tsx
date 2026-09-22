@@ -35,7 +35,6 @@ export default function CustomersPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    // パスワードを 0509 に変更
     if (password === '0509') {
       setIsAuthenticated(true)
       sessionStorage.setItem('admin_auth', 'true')
@@ -56,7 +55,6 @@ export default function CustomersPage() {
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
-      .neq('status', 'cancelled')
       .order('date', { ascending: false })
 
     if (error) {
@@ -76,6 +74,7 @@ export default function CustomersPage() {
           name: b.user_name || '名前なし',
           email: b.email || '未登録',
           totalBookings: 0,
+          cancelledBookings: 0,
           totalSpent: 0,
           lastBookingDate: b.date || '',
         })
@@ -83,7 +82,12 @@ export default function CustomersPage() {
 
       const customer = customerMap.get(key)
       customer.totalBookings += 1
-      customer.totalSpent += b.total_price || 0
+
+      if (b.status === 'cancelled') {
+        customer.cancelledBookings += 1
+      } else {
+        customer.totalSpent += b.total_price || 0
+      }
       
       if (b.date && b.date > customer.lastBookingDate) {
         customer.lastBookingDate = b.date
@@ -155,7 +159,7 @@ export default function CustomersPage() {
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
-        <h1 className="text-lg font-bold text-gray-900">顧客リスト（顧客管理）</h1>
+        <h1 className="text-lg font-bold text-gray-900">顧客リスト（履歴・キャンセル含む）</h1>
         <div className="flex space-x-3 items-center">
           <Link href="/admin" className="bg-gray-200 hover:bg-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition">
             予約一覧へ戻る
@@ -217,7 +221,7 @@ export default function CustomersPage() {
                   <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
                     <th className="p-4 font-bold">お名前</th>
                     <th className="p-4 font-bold">メールアドレス</th>
-                    <th className="p-4 font-bold">総予約回数</th>
+                    <th className="p-4 font-bold">総予約回数 (内キャンセル)</th>
                     <th className="p-4 font-bold">利用総額</th>
                     <th className="p-4 font-bold">直近の予約日</th>
                   </tr>
@@ -227,7 +231,14 @@ export default function CustomersPage() {
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="p-4 font-bold text-gray-900">{c.name}</td>
                       <td className="p-4 text-gray-600">{c.email}</td>
-                      <td className="p-4 font-semibold">{c.totalBookings} 回</td>
+                      <td className="p-4 font-semibold">
+                        {c.totalBookings} 回{' '}
+                        {c.cancelledBookings > 0 && (
+                          <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-red-100 text-red-600 font-bold">
+                            うちキャンセル {c.cancelledBookings}回
+                          </span>
+                        )}
+                      </td>
                       <td className="p-4 font-bold text-emerald-600">¥{c.totalSpent.toLocaleString()}</td>
                       <td className="p-4 text-gray-600">{c.lastBookingDate}</td>
                     </tr>
