@@ -51,7 +51,7 @@ function BookContent() {
       .from('bookings')
       .select('*')
       .eq('space_id', spaceId)
-      .eq('booking_date', date)
+      .eq('date', date)
       .neq('status', 'cancelled')
 
     if (bookingError) {
@@ -136,7 +136,7 @@ function BookContent() {
       const { error: insertError } = await supabase.from('bookings').insert([
         {
           space_id: spaceId,
-          booking_date: date,
+          date: date, // データベースの 'date' カラムに合わせる
           user_name: userName,
           email: email,
           start_time: startTimeStr,
