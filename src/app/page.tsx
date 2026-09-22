@@ -44,8 +44,15 @@ export default function Home() {
     setLoading(true)
     const { data: spacesData } = await supabase.from('spaces').select('*')
     if (spacesData && spacesData.length > 0) {
-      setSpaces(spacesData)
-      setSelectedSpace(spacesData[0])
+      // データベース上の画像が空などの場合に備え、デフォルトで space2.jpg を優先設定
+      const updatedSpaces = spacesData.map((s, index) => {
+        if (index === 0 && (!s.image_url || s.image_url === '')) {
+          return { ...s, image_url: '/space2.jpg' }
+        }
+        return s
+      })
+      setSpaces(updatedSpaces)
+      setSelectedSpace(updatedSpaces[0])
     }
 
     const { data: bookingsData } = await supabase
@@ -113,23 +120,34 @@ export default function Home() {
       return
     }
 
-    const { error } = await supabase.from('bookings').insert([
-      {
-        space_id: selectedSpace.id,
-        date: selectedDate,
-        start_time: startTime,
-        end_time: endTime,
-        user_name: userName,
-        email: email,
-        total_price: totalPrice,
-        status: 'active',
-        is_confirmed: false,
-      },
-    ])
+    const newBookingData = {
+      space_id: selectedSpace.id,
+      date: selectedDate,
+      start_time: startTime,
+      end_time: endTime,
+      user_name: userName,
+      email: email,
+      total_price: totalPrice,
+      status: 'active',
+      is_confirmed: false,
+    }
+
+    const { error } = await supabase.from('bookings').insert([newBookingData])
 
     if (error) {
       alert('予約に失敗しました: ' + error.message)
     } else {
+      // 予約成功時に管理者へメール通知
+      try {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'booking', booking: newBookingData }),
+        })
+      } catch (err) {
+        console.error('メール通知送信失敗:', err)
+      }
+
       alert('予約が完了しました！')
       setStartTime('')
       setEndTime('')
@@ -160,19 +178,30 @@ export default function Home() {
     }
   }
 
-  const handleUserCancelBooking = async (id: string) => {
+  const handleUserCancelBooking = async (bookingObj: any) => {
     if (!confirm('本当にこの予約をキャンセルしますか？')) return
 
     const { error } = await supabase
       .from('bookings')
       .update({ status: 'cancelled' })
-      .eq('id', id)
+      .eq('id', bookingObj.id)
 
     if (error) {
       alert('キャンセルの処理に失敗しました。')
     } else {
+      // キャンセル成功時に管理者へメール通知
+      try {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'cancel', booking: bookingObj }),
+        })
+      } catch (err) {
+        console.error('キャンセルメール通知送信失敗:', err)
+      }
+
       alert('予約をキャンセルしました。')
-      setUserBookings((prev) => prev.filter((b) => b.id !== id))
+      setUserBookings((prev) => prev.filter((b) => b.id !== bookingObj.id))
       fetchInitialData()
     }
   }
@@ -213,8 +242,17 @@ export default function Home() {
           <div className="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full mb-3">
             募集中
           </div>
-          <h2 className="text-xl font-extrabold text-gray-900 mb-2">COCOKARA レンタルスペース</h2>
-          <p className="text-xs text-gray-600 mb-6">会議や各種イベント、教室利用に最適なレンタルスペースです。</p>
+          <h2 className="text-xl font-extrabold text-gray-900 mb-2">{selectedSpace?.name || 'COCOKARA レンタルスペース'}</h2>
+          <p className="text-xs text-gray-600 mb-6">{selectedSpace?.description || '会議や各種イベント、教室利用に最適なレンタルスペースです。'}</p>
+
+          {/* スペースの写真表示エリア（space2.jpg を指定） */}
+          <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 max-h-96 bg-gray-100 flex items-center justify-center">
+            <img
+              src={selectedSpace?.image_url || '/space2.jpg'}
+              alt={selectedSpace?.name || 'スペース写真'}
+              className="w-full h-auto object-cover max-h-96"
+            />
+          </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <h3 className="text-xs font-bold text-amber-900 mb-2">利用料金プラン</h3>
@@ -381,7 +419,7 @@ export default function Home() {
                       <div className="text-gray-600">¥{(b.total_price || 0).toLocaleString()}</div>
                     </div>
                     <button
-                      onClick={() => handleUserCancelBooking(b.id)}
+                      onClick={() => handleUserCancelBooking(b)}
                       className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
                     >
                       キャンセルする
@@ -405,7 +443,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 管理者ログインモーダル（パスワード文字色を濃く修正） */}
+      {/* 管理者ログインモーダル */}
       {passwordModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
