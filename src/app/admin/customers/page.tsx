@@ -12,6 +12,8 @@ export default function CustomersPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [customers, setCustomers] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [sortBy, setSortBy] = useState<'latestDate' | 'bookingCount' | 'name'>('latestDate')
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +59,30 @@ export default function CustomersPage() {
       setCustomers(Object.values(customerMap))
     }
     setLoading(false)
+  }
+
+  // ソート（並べ替え）の処理
+  const sortedCustomers = [...customers].sort((a, b) => {
+    let valA = a[sortBy]
+    let valB = b[sortBy]
+
+    if (typeof valA === 'string') {
+      valA = valA.toLowerCase()
+      valB = valB.toLowerCase()
+    }
+
+    if (valA < valB) return sortOrder === 'asc' ? -1 : 1
+    if (valA > valB) return sortOrder === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const handleSortChange = (type: 'latestDate' | 'bookingCount' | 'name') => {
+    if (sortBy === type) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(type)
+      setSortOrder(type === 'name' ? 'asc' : 'desc') // 名前はデフォルト昇順、他は降順
+    }
   }
 
   if (!isAuthenticated) {
@@ -112,9 +138,38 @@ export default function CustomersPage() {
           </div>
         </div>
 
+        {/* 並べ替えボタンエリア */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-bold text-gray-700">並べ替え:</span>
+          <button
+            onClick={() => handleSortChange('latestDate')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              sortBy === 'latestDate' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            直近の予約日 {sortBy === 'latestDate' && (sortOrder === 'desc' ? '▼' : '▲')}
+          </button>
+          <button
+            onClick={() => handleSortChange('bookingCount')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              sortBy === 'bookingCount' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            総予約回数 {sortBy === 'bookingCount' && (sortOrder === 'desc' ? '▼' : '▲')}
+          </button>
+          <button
+            onClick={() => handleSortChange('name')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              sortBy === 'name' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            お名前順 {sortBy === 'name' && (sortOrder === 'asc' ? '▲' : '▼')}
+          </button>
+        </div>
+
         {loading ? (
           <p className="text-gray-600 font-medium text-center py-10">読み込み中...</p>
-        ) : customers.length === 0 ? (
+        ) : sortedCustomers.length === 0 ? (
           <div className="bg-white p-8 rounded-xl shadow-md text-center border border-gray-200">
             <p className="text-gray-600 font-medium">現在、登録されている顧客データはありません。</p>
           </div>
@@ -132,7 +187,7 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-sm text-gray-800">
-                  {customers.map((c, index) => (
+                  {sortedCustomers.map((c, index) => (
                     <tr key={index} className="hover:bg-gray-50 align-top">
                       <td className="p-3 font-bold">{c.name}</td>
                       <td className="p-3 text-gray-600">{c.email}</td>
