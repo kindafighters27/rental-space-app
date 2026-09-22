@@ -40,7 +40,6 @@ export default function BookPage() {
       .single()
     if (spaceData) setSpace(spaceData)
 
-    // スペースIDが一致し、キャンセルされていない予約を全て取得
     const { data: bookingData } = await supabase
       .from('bookings')
       .select('*')
@@ -48,7 +47,6 @@ export default function BookPage() {
       .neq('status', 'cancelled')
 
     if (bookingData) {
-      // 選択された日付（YYYY-MM-DD）に完全一致するものだけを厳密に抽出（date / booking_date 両対応）
       const targetDate = date ? date.slice(0, 10) : ''
       const filtered = bookingData.filter((b) => {
         const bDate = b.booking_date || b.date
@@ -59,7 +57,6 @@ export default function BookPage() {
     }
   }
 
-  // 時間文字列（"HH:mm"）を当日0時からの経過分に変換する関数（深夜0時〜翌朝6時を24時間以降に換算）
   const timeToTotalMinutes = (timeStr: string) => {
     if (!timeStr) return 0
     const cleanTime = timeStr.slice(0, 5)
@@ -72,7 +69,6 @@ export default function BookPage() {
     return h * 60 + m
   }
 
-  // 新規入力の開始・終了分
   const startTotalMins = timeToTotalMinutes(`${startHour}:${startMinute}`)
   
   let endH = parseInt(endHour, 10)
@@ -82,7 +78,6 @@ export default function BookPage() {
   }
   const endTotalMins = endH * 60 + endM
 
-  // 料金計算（1〜6時間は15,000円、超過は1時間毎+2,500円）
   const calculatePrice = () => {
     const diffHours = (endTotalMins - startTotalMins) / 60
     if (diffHours <= 0) return 0
@@ -92,12 +87,9 @@ export default function BookPage() {
 
   const totalPrice = calculatePrice()
 
-  // 厳密な重複チェック（既存の予約時間帯と1分でも重なっていれば true）
   const isOverlap = existingBookings.some((b) => {
     const bStart = timeToTotalMinutes(b.start_time)
     const bEnd = timeToTotalMinutes(b.end_time)
-
-    // 重複条件: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
     return startTotalMins < bEnd && endTotalMins > bStart
   })
 
@@ -116,7 +108,6 @@ export default function BookPage() {
 
     setLoading(true)
 
-    // データベースへの登録（date と booking_date の両方に同じ日付を入れて互換性を確保）
     const { error } = await supabase.from('bookings').insert([
       {
         space_id: spaceId,
@@ -136,7 +127,6 @@ export default function BookPage() {
       return
     }
 
-    // メール送信（エラーが出ても処理を止めない）
     try {
       await fetch('/api/send-email', {
         method: 'POST',
@@ -169,7 +159,6 @@ export default function BookPage() {
           <p className="text-sm text-gray-500 mt-1">予約日: {date}</p>
         </div>
 
-        {/* 予約済み時間帯の一覧表示 */}
         <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-xs font-bold text-amber-800 mb-1">⚠️ 本日の予約済み時間帯:</p>
           {existingBookings.length === 0 ? (
@@ -210,7 +199,6 @@ export default function BookPage() {
             />
           </div>
 
-          {/* 時間選択エリア */}
           <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">開始時間</label>
@@ -263,13 +251,11 @@ export default function BookPage() {
             </div>
           </div>
 
-          {/* 料金表示エリア */}
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
             <span className="text-xs font-semibold text-emerald-800">お支払い予定金額</span>
             <div className="text-2xl font-bold text-emerald-600 mt-1">¥{totalPrice.toLocaleString()}</div>
           </div>
 
-          {/* 時間が被っている場合の警告 */}
           {isOverlap && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-bold">
               ⚠️ 選択された時間帯は、すでに予約が入っている時間と重複しています。別の時間をお選びください。

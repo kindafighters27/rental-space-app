@@ -21,7 +21,6 @@ export default function Home() {
     const { data: spaceData } = await supabase.from('spaces').select('*')
     if (spaceData) setSpaces(spaceData)
 
-    // 有効な（キャンセルされていない）予約のみを取得
     const { data: bookingData, error } = await supabase
       .from('bookings')
       .select('*')
@@ -40,7 +39,6 @@ export default function Home() {
     setLoading(false)
   }
 
-  // 今後2週間の日付リストを生成
   const generateDates = () => {
     const dates = []
     const today = new Date()
@@ -105,7 +103,6 @@ export default function Home() {
             
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {dates.map((dateStr) => {
-                // String()で型を完全に統一して安全に比較
                 const dayBookings = bookings.filter((b) => {
                   if (String(b.space_id) !== String(space.id)) return false
                   const bDate = b.booking_date || b.date 
@@ -120,10 +117,9 @@ export default function Home() {
                 const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()]
 
                 return isBooked ? (
-                  // 予約が入っている場合は「×」を表示し、クリックできないようにする
                   <div
                     key={dateStr}
-                    className="p-3 rounded-lg border text-center flex flex-col justify-between items-center bg-red-50 border-red-200 opacity-80 cursor-not-allowed"
+                    className="p-3 rounded-lg border text-center flex flex-col justify-between items-center bg-red-50 border-red-200 opacity-90 cursor-not-allowed"
                   >
                     <div>
                       <span className="text-xs font-semibold text-gray-500">
@@ -137,7 +133,6 @@ export default function Home() {
                     </div>
                   </div>
                 ) : (
-                  // 空きがある場合は予約ページへのリンクにする
                   <a
                     key={dateStr}
                     href={`/book?space_id=${space.id}&date=${dateStr}`}
