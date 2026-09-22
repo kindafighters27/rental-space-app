@@ -57,18 +57,22 @@ function BookContent() {
     }
   }
 
+  // 時間文字列（"HH:mm:ss" または "HH:mm"）を安全にパースする関数
   const timeToTotalMinutes = (timeStr: string) => {
     if (!timeStr) return 0
     const cleanTime = timeStr.slice(0, 5)
     const [hStr, mStr] = cleanTime.split(':')
     let h = parseInt(hStr, 10)
     const m = parseInt(mStr || '0', 10)
+    
+    // 03:00 や 25:00 などの深夜帯の扱いを統一（午前0時〜6時は +24時間する）
     if (h >= 0 && h < 6) {
       h += 24
     }
     return h * 60 + m
   }
 
+  // ユーザーが選択した開始・終了のトータル分
   const startTotalMins = timeToTotalMinutes(`${startHour}:${startMinute}`)
   
   let endH = parseInt(endHour, 10)
@@ -76,7 +80,12 @@ function BookContent() {
   if (endH >= 0 && endH < 6) {
     endH += 24
   }
-  const endTotalMins = endH * 60 + endM
+  let endTotalMins = endH * 60 + endM
+
+  // 開始時間と同じかそれ以前なら、最低30分後または終了時間が開始時間を超えるように調整（またはそのまま）
+  if (endTotalMins <= startTotalMins) {
+    endTotalMins += 24 * 60 // 翌日にまたがる場合の補正
+  }
 
   const calculatePrice = () => {
     const diffHours = (endTotalMins - startTotalMins) / 60
@@ -87,9 +96,17 @@ function BookContent() {
 
   const totalPrice = calculatePrice()
 
+  // 厳密な重複判定ロジック
   const isOverlap = existingBookings.some((b) => {
     const bStart = timeToTotalMinutes(b.start_time)
-    const bEnd = timeToTotalMinutes(b.end_time)
+    let bEnd = timeToTotalMinutes(b.end_time)
+    
+    // 既存予約も日付を跨いで終了する場合の補正（例: 19:00 〜 01:00 の場合、01:00 は 25:00 に換算されるようにする）
+    if (bEnd <= bStart) {
+      bEnd += 24 * 60
+    }
+
+    // 重複条件: 「既存の開始 < ユーザーの終了」かつ「ユーザーの開始 < 既存の終了」
     return startTotalMins < bEnd && endTotalMins > bStart
   })
 
