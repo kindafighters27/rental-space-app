@@ -40,26 +40,32 @@ export default function BookPage() {
       .single()
     if (spaceData) setSpace(spaceData)
 
-    // 同日・同スペースの有効な予約を取得
+    // スペースIDが一致し、キャンセルされていない予約を全て取得
     const { data: bookingData } = await supabase
       .from('bookings')
       .select('*')
       .eq('space_id', spaceId)
-      .eq('date', date)
       .neq('status', 'cancelled')
 
     if (bookingData) {
-      setExistingBookings(bookingData)
+      // 選択された日付（YYYY-MM-DD）に完全一致するものだけを厳密に抽出（date / booking_date 両対応）
+      const targetDate = date ? date.slice(0, 10) : ''
+      const filtered = bookingData.filter((b) => {
+        const bDate = b.booking_date || b.date
+        if (!bDate) return false
+        return String(bDate).slice(0, 10) === targetDate && b.status !== 'CANCELED'
+      })
+      setExistingBookings(filtered)
     }
   }
 
-  // 時間文字列（"HH:mm"）を当日0時からの経過分に変換する堅牢な関数
+  // 時間文字列（"HH:mm"）を当日0時からの経過分に変換する関数（深夜0時〜翌朝6時を24時間以降に換算）
   const timeToTotalMinutes = (timeStr: string) => {
     if (!timeStr) return 0
-    const [hStr, mStr] = timeStr.slice(0, 5).split(':')
+    const cleanTime = timeStr.slice(0, 5)
+    const [hStr, mStr] = cleanTime.split(':')
     let h = parseInt(hStr, 10)
     const m = parseInt(mStr || '0', 10)
-    // 0〜5時は翌日の時間として扱う（例: 01:00 -> 25:00相当）
     if (h >= 0 && h < 6) {
       h += 24
     }
@@ -69,7 +75,6 @@ export default function BookPage() {
   // 新規入力の開始・終了分
   const startTotalMins = timeToTotalMinutes(`${startHour}:${startMinute}`)
   
-  // 終了時間が選択ボックスで24時以降（25時など）に設定されている場合の処理
   let endH = parseInt(endHour, 10)
   const endM = parseInt(endMinute, 10)
   if (endH >= 0 && endH < 6) {
@@ -77,43 +82,46 @@ export default function BookPage() {
   }
   const endTotalMins = endH * 60 + endM
 
-  // 料金計算
+  // 料金計算（1〜6時間は15,000円、超過は1時間毎+2,500円）
   const calculatePrice = () => {
     const diffHours = (endTotalMins - startTotalMins) / 60
     if (diffHours <= 0) return 0
-    const hourlyRate = 2500
-    return Math.round(diffHours * hourlyRate)
+    if (diffHours <= 6) return 15000
+    return 15000 + Math.ceil(diffHours - 6) * 2500
   }
 
   const totalPrice = calculatePrice()
 
-  // 厳密な重複チェック（既存の予約と少しでも重なっていたら true）
+  // 厳密な重複チェック（既存の予約時間帯と1分でも重なっていれば true）
   const isOverlap = existingBookings.some((b) => {
     const bStart = timeToTotalMinutes(b.start_time)
     const bEnd = timeToTotalMinutes(b.end_time)
 
-    // 重複の条件: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
+    // 重複条件: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
     return startTotalMins < bEnd && endTotalMins > bStart
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isOverlap) {
-      alert('選択された時間帯にはすでに予約が入っています。別の時間をお選びください。')
-      return
-    }
 
     if (startTotalMins >= endTotalMins) {
       alert('終了時間は開始時間より後の時間を設定してください。')
       return
     }
 
+    if (isOverlap) {
+      alert('選択された時間帯はすでに予約が入っています。別の時間をお選びください。')
+      return
+    }
+
     setLoading(true)
 
+    // データベースへの登録（date と booking_date の両方に同じ日付を入れて互換性を確保）
     const { error } = await supabase.from('bookings').insert([
       {
         space_id: spaceId,
         date: date,
+        booking_date: date,
         user_name: userName,
         user_email: userEmail,
         start_time: `${startHour}:${startMinute}`,
@@ -148,7 +156,7 @@ export default function BookPage() {
     }
 
     alert('予約が完了しました！')
-    router.push('/admin')
+    router.push('/')
   }
 
   return (
