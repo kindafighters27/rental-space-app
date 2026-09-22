@@ -21,7 +21,7 @@ export default function Home() {
     const { data: spaceData } = await supabase.from('spaces').select('*')
     if (spaceData) setSpaces(spaceData)
 
-    // 有効な（キャンセルされていない）予約のみを厳密に取得
+    // 有効な（キャンセルされていない）予約のみを取得
     const { data: bookingData, error } = await supabase
       .from('bookings')
       .select('*')
@@ -32,7 +32,6 @@ export default function Home() {
     }
 
     if (bookingData) {
-      // 念のためクライアント側でも cancelled やステータス異常のものを完全に除外
       const validBookings = bookingData.filter(
         (b) => b.status !== 'cancelled' && b.status !== 'CANCELED'
       )
@@ -106,7 +105,6 @@ export default function Home() {
             
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {dates.map((dateStr) => {
-                // 有効な予約データの中に、このスペースかつこの日付（date または booking_date）に一致するものがあるかチェック
                 const dayBookings = bookings.filter(
                   (b) => 
                     b.space_id === space.id && 
@@ -119,15 +117,29 @@ export default function Home() {
                 const day = dateObj.getDate()
                 const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()]
 
-                return (
+                return isBooked ? (
+                  // 予約が入っている場合は「×」を表示し、クリックできないようにする（divタグにする）
+                  <div
+                    key={dateStr}
+                    className="p-3 rounded-lg border text-center flex flex-col justify-between items-center bg-red-50 border-red-200 opacity-80 cursor-not-allowed"
+                  >
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500">
+                        {month}/{day} ({dayOfWeek})
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-[10px] font-bold text-red-700 bg-red-200 px-2.5 py-0.5 rounded-full">
+                        × 予約不可
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  // 空きがある場合はこれまで通り予約ページへのリンクにする
                   <a
                     key={dateStr}
                     href={`/book?space_id=${space.id}&date=${dateStr}`}
-                    className={`p-3 rounded-lg border text-center transition flex flex-col justify-between items-center ${
-                      isBooked
-                        ? 'bg-amber-50 border-amber-200 hover:bg-amber-100'
-                        : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                    }`}
+                    className="p-3 rounded-lg border text-center transition flex flex-col justify-between items-center bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
                   >
                     <div>
                       <span className="text-xs font-semibold text-gray-600">
@@ -135,15 +147,9 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="mt-2">
-                      {isBooked ? (
-                        <span className="text-[10px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full">
-                          予約あり
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-200 px-2 py-0.5 rounded-full">
-                          空きあり
-                        </span>
-                      )}
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-200 px-2.5 py-0.5 rounded-full">
+                        空きあり
+                      </span>
                     </div>
                   </a>
                 )
