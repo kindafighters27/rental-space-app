@@ -8,13 +8,12 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { to, userName, spaceName, date, startTime, endTime, price } = body
 
-    // 管理者2名のアドレス
-    const adminEmails = ['kindafighters27@gmail.com', 'senndouiorin@gmail.com']
+    // Resendの無料プラン制限に対応するため、登録済みアドレス1件に送信し、Gmail側で転送する
+    const adminEmail = 'kindafighters27@gmail.com'
 
-    // お客様には送らず、管理者2名にのみ「新規仮予約のお知らせ」メールを送信する
     const data = await resend.emails.send({
-      from: 'onboarding@resend.dev', // またはご自身の認証済みドメイン
-      to: adminEmails,
+      from: 'onboarding@resend.dev',
+      to: [adminEmail],
       subject: `【新規仮予約】${spaceName} - ${userName}様`,
       html: `
         <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
@@ -31,8 +30,8 @@ export async function POST(request: Request) {
           </div>
 
           <p style="font-size: 12px; color: #666;">
-            ※このメールはレンタルスペース予約システムからの自動通知です。<br>
-            ※お客様への確定メールは、上記のアドレス宛に手動で送信してください。
+            ※このシステム通知は kindafighters27@gmail.com に届き、転送設定により senndouiorin@gmail.com へ共有されます。<br>
+            ※お客様への確定メールは、上記のお客様アドレス宛に手動で送信してください。
           </p>
         </div>
       `,
