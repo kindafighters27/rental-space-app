@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -9,7 +9,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export default function BookPage() {
+function BookContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const spaceId = searchParams.get('space_id')
@@ -20,7 +20,6 @@ export default function BookPage() {
   const [userName, setUserName] = useState('')
   const [email, setEmail] = useState('')
   
-  // 開始・終了時間の設定（初期値）
   const [startHour, setStartHour] = useState('19')
   const [startMinute, setStartMinute] = useState('00')
   const [endHour, setEndHour] = useState('25')
@@ -92,7 +91,6 @@ export default function BookPage() {
     const m = parseInt(parts[1], 10) || 0
     let total = h + m / 60
     
-    // 終了時間が開始時間より小さい、あるいは深夜・朝方の数値の場合は翌日扱いとして24時間を足す
     if (isEnd && total < 12) {
       total += 24
     }
@@ -123,7 +121,6 @@ export default function BookPage() {
         existingEnd += 24
       }
 
-      // 時間の重複判定
       if (newStartDecimal < existingEnd && newEndDecimal > existingStart) {
         alert(`選択された時間帯（${startHour}:${startMinute} 〜 ${endHour}:${endMinute}）は、既存の予約（${b.start_time?.slice(0, 5)} 〜 ${b.end_time?.slice(0, 5)}）と重複しています。別の時間をお選びください。`)
         return
@@ -136,7 +133,6 @@ export default function BookPage() {
     setSubmitting(true)
 
     try {
-      // データベースへの登録
       const { error: insertError } = await supabase.from('bookings').insert([
         {
           space_id: spaceId,
@@ -152,7 +148,6 @@ export default function BookPage() {
 
       if (insertError) throw insertError
 
-      // 管理者へのメール通知API呼び出し
       const emailRes = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -181,7 +176,6 @@ export default function BookPage() {
     }
   }
 
-  // 00時〜30時までの選択肢を生成
   const hours = Array.from({ length: 31 }, (_, i) => String(i).padStart(2, '0'))
 
   return (
@@ -202,7 +196,6 @@ export default function BookPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-1">{space?.name}</h2>
             <p className="text-xs text-emerald-600 font-bold mb-6">予約日: {date}</p>
 
-            {/* 予約済み時間帯の表示 */}
             <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
               <h3 className="text-xs font-bold text-gray-700 mb-2">⚠️ 本日の予約済み時間帯:</h3>
               {existingBookings.length === 0 ? (
@@ -244,7 +237,6 @@ export default function BookPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* 開始時間 */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">開始時間</label>
                   <div className="flex space-x-2">
@@ -268,7 +260,6 @@ export default function BookPage() {
                   </div>
                 </div>
 
-                {/* 終了時間（30時まで対応） */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">終了時間</label>
                   <div className="flex space-x-2">
@@ -293,7 +284,6 @@ export default function BookPage() {
                 </div>
               </div>
 
-              {/* 料金表示 */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center mt-6">
                 <span className="text-xs font-bold text-emerald-800">お支払い予定金額</span>
                 <div className="text-2xl font-black text-emerald-600 mt-1">
@@ -313,5 +303,13 @@ export default function BookPage() {
         )}
       </div>
     </main>
+  )
+}
+
+export default function BookPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500">読み込み中...</div>}>
+      <BookContent />
+    </Suspense>
   )
 }
