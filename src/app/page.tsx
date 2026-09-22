@@ -44,10 +44,9 @@ export default function Home() {
     setLoading(true)
     const { data: spacesData } = await supabase.from('spaces').select('*')
     if (spacesData && spacesData.length > 0) {
-      // データベース上の画像が空などの場合に備え、デフォルトで space2.jpg を優先設定
       const updatedSpaces = spacesData.map((s, index) => {
         if (index === 0 && (!s.image_url || s.image_url === '')) {
-          return { ...s, image_url: '/space2.jpg' }
+          return { ...s, image_url: '/space2.JPG' }
         }
         return s
       })
@@ -64,7 +63,14 @@ export default function Home() {
     setLoading(false)
   }
 
-  const timeOptions = Array.from({ length: 25 }, (_, i) => {
+  // 開始時間用（00:00 〜 24:00）
+  const startTimeOptions = Array.from({ length: 25 }, (_, i) => {
+    const hour = String(i).padStart(2, '0')
+    return `${hour}:00`
+  })
+
+  // 終了時間用（深夜30時＝翌朝6:00まで選択可能にするため 00:00 〜 30:00）
+  const endTimeOptions = Array.from({ length: 31 }, (_, i) => {
     const hour = String(i).padStart(2, '0')
     return `${hour}:00`
   })
@@ -245,10 +251,10 @@ export default function Home() {
           <h2 className="text-xl font-extrabold text-gray-900 mb-2">{selectedSpace?.name || 'COCOKARA レンタルスペース'}</h2>
           <p className="text-xs text-gray-600 mb-6">{selectedSpace?.description || '会議や各種イベント、教室利用に最適なレンタルスペースです。'}</p>
 
-          {/* スペースの写真表示エリア（space2.jpg を指定） */}
+          {/* スペースの写真表示エリア（space2.JPG を指定） */}
           <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 max-h-96 bg-gray-100 flex items-center justify-center">
             <img
-              src={selectedSpace?.image_url || '/space2.jpg'}
+              src={selectedSpace?.image_url || '/space2.JPG'}
               alt={selectedSpace?.name || 'スペース写真'}
               className="w-full h-auto object-cover max-h-96"
             />
@@ -315,7 +321,7 @@ export default function Home() {
                     required
                   >
                     <option value="">開始時間を選択</option>
-                    {timeOptions.slice(0, 24).map((time) => {
+                    {startTimeOptions.slice(0, 24).map((time) => {
                       const disabled = isTimeSlotDisabled(time)
                       return (
                         <option key={time} value={time} disabled={disabled}>
@@ -334,7 +340,7 @@ export default function Home() {
                     required
                   >
                     <option value="">終了時間を選択</option>
-                    {timeOptions.map((time) => (
+                    {endTimeOptions.map((time) => (
                       <option key={time} value={time}>
                         {time}
                       </option>
