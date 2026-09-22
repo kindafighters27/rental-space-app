@@ -53,38 +53,48 @@ export default function BookPage() {
     }
   }
 
-  // 時間を「分（数値）」に変換して比較しやすくする補助関数
-  const timeToMins = (timeStr: string) => {
+  // 時間文字列（"HH:mm"）を当日0時からの経過分に変換する堅牢な関数
+  const timeToTotalMinutes = (timeStr: string) => {
     if (!timeStr) return 0
-    const [h, m] = timeStr.slice(0, 5).split(':').map(Number)
-    const hours = h < 6 ? h + 24 : h
-    return hours * 60 + m
+    const [hStr, mStr] = timeStr.slice(0, 5).split(':')
+    let h = parseInt(hStr, 10)
+    const m = parseInt(mStr || '0', 10)
+    // 0〜5時は翌日の時間として扱う（例: 01:00 -> 25:00相当）
+    if (h >= 0 && h < 6) {
+      h += 24
+    }
+    return h * 60 + m
   }
 
-  const startMins = parseInt(startHour) * 60 + parseInt(startMinute)
-  const endHNum = parseInt(endHour)
-  const adjustedEndH = endHNum < 6 ? endHNum + 24 : endHNum
-  const endMins = adjustedEndH * 60 + parseInt(endMinute)
+  // 新規入力の開始・終了分
+  const startTotalMins = timeToTotalMinutes(`${startHour}:${startMinute}`)
+  
+  // 終了時間が選択ボックスで24時以降（25時など）に設定されている場合の処理
+  let endH = parseInt(endHour, 10)
+  const endM = parseInt(endMinute, 10)
+  if (endH >= 0 && endH < 6) {
+    endH += 24
+  }
+  const endTotalMins = endH * 60 + endM
 
-  const startTimeStr = `${startHour}:${startMinute}`
-  const endTimeStr = `${endHour}:${endMinute}`
-
-  // 厳密な重複チェック
-  const isOverlap = existingBookings.some((b) => {
-    const bStartMins = timeToMins(b.start_time)
-    const bEndMins = timeToMins(b.end_time)
-    return startMins < bEndMins && endMins > bStartMins
-  })
-
-  // 料金計算ロジック
+  // 料金計算
   const calculatePrice = () => {
-    const diffHours = (endMins - startMins) / 60
+    const diffHours = (endTotalMins - startTotalMins) / 60
     if (diffHours <= 0) return 0
     const hourlyRate = 2500
     return Math.round(diffHours * hourlyRate)
   }
 
   const totalPrice = calculatePrice()
+
+  // 厳密な重複チェック（既存の予約と少しでも重なっていたら true）
+  const isOverlap = existingBookings.some((b) => {
+    const bStart = timeToTotalMinutes(b.start_time)
+    const bEnd = timeToTotalMinutes(b.end_time)
+
+    // 重複の条件: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
+    return startTotalMins < bEnd && endTotalMins > bStart
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,22 +103,21 @@ export default function BookPage() {
       return
     }
 
-    if (startMins >= endMins) {
+    if (startTotalMins >= endTotalMins) {
       alert('終了時間は開始時間より後の時間を設定してください。')
       return
     }
 
     setLoading(true)
 
-    // 1. Supabaseへ予約データを挿入
     const { error } = await supabase.from('bookings').insert([
       {
         space_id: spaceId,
         date: date,
         user_name: userName,
         user_email: userEmail,
-        start_time: startTimeStr,
-        end_time: endTimeStr,
+        start_time: `${startHour}:${startMinute}`,
+        end_time: `${endHour}:${endMinute}`,
         status: 'active',
       },
     ])
@@ -119,28 +128,26 @@ export default function BookPage() {
       return
     }
 
-    // 2. 自動メール送信APIを呼び出し
+    // メール送信（エラーが出ても処理を止めない）
     try {
       await fetch('/api/send-email', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: userEmail,
-          userName: userName,
+          userName,
           spaceName: space?.name || 'レンタルスペース',
-          date: date,
-          startTime: startTimeStr,
-          endTime: endTimeStr,
+          date,
+          startTime: `${startHour}:${startMinute}`,
+          endTime: `${endHour}:${endMinute}`,
           price: totalPrice,
         }),
       })
     } catch (mailError) {
-      console.error('メール送信に失敗しました:', mailError)
+      console.error('メール送信エラー:', mailError)
     }
 
-    alert('予約が完了し、確認メールを送信しました！')
+    alert('予約が完了しました！')
     router.push('/admin')
   }
 
@@ -203,7 +210,7 @@ export default function BookPage() {
                 <select
                   value={startHour}
                   onChange={(e) => setStartHour(e.target.value)}
-                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold"
+                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold text-gray-900"
                 >
                   {Array.from({ length: 24 }).map((_, i) => (
                     <option key={i} value={String(i).padStart(2, '0')}>
@@ -214,7 +221,7 @@ export default function BookPage() {
                 <select
                   value={startMinute}
                   onChange={(e) => setStartMinute(e.target.value)}
-                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold"
+                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold text-gray-900"
                 >
                   <option value="00">00分</option>
                   <option value="30">30分</option>
@@ -228,7 +235,7 @@ export default function BookPage() {
                 <select
                   value={endHour}
                   onChange={(e) => setEndHour(e.target.value)}
-                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold"
+                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold text-gray-900"
                 >
                   {Array.from({ length: 27 }).map((_, i) => (
                     <option key={i} value={String(i).padStart(2, '0')}>
@@ -239,7 +246,7 @@ export default function BookPage() {
                 <select
                   value={endMinute}
                   onChange={(e) => setEndMinute(e.target.value)}
-                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold"
+                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold text-gray-900"
                 >
                   <option value="00">00分</option>
                   <option value="30">30分</option>
@@ -254,6 +261,7 @@ export default function BookPage() {
             <div className="text-2xl font-bold text-emerald-600 mt-1">¥{totalPrice.toLocaleString()}</div>
           </div>
 
+          {/* 時間が被っている場合の警告 */}
           {isOverlap && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-bold">
               ⚠️ 選択された時間帯は、すでに予約が入っている時間と重複しています。別の時間をお選びください。
