@@ -27,13 +27,12 @@ export default function CustomersPage() {
     setLoading(true)
     const { data, error } = await supabase
       .from('bookings')
-      .select('user_name, user_email, date, start_time, end_time')
+      .select('user_name, user_email, date, start_time, end_time, status')
       .order('date', { ascending: false })
 
     if (error) {
       console.error('顧客データの取得に失敗しました:', error)
     } else if (data) {
-      // メールアドレスをキーにして顧客ごとに集計
       const customerMap: { [key: string]: any } = {}
 
       data.forEach((booking) => {
@@ -51,10 +50,10 @@ export default function CustomersPage() {
         customerMap[email].history.push({
           date: booking.date,
           time: `${booking.start_time?.slice(0, 5) || ''} 〜 ${booking.end_time?.slice(0, 5) || ''}`,
+          isCancelled: booking.status === 'cancelled',
         })
       })
 
-      // 配列に変換してセット
       setCustomers(Object.values(customerMap))
     }
     setLoading(false)
@@ -129,7 +128,7 @@ export default function CustomersPage() {
                     <th className="p-3">メールアドレス</th>
                     <th className="p-3 text-center">総予約回数</th>
                     <th className="p-3">直近の予約日</th>
-                    <th className="p-3">予約履歴</th>
+                    <th className="p-3">予約履歴（※キャンセル含む）</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-sm text-gray-800">
@@ -141,8 +140,8 @@ export default function CustomersPage() {
                       <td className="p-3 font-medium">{c.latestDate}</td>
                       <td className="p-3 text-xs text-gray-500 space-y-1">
                         {c.history.map((h: any, i: number) => (
-                          <div key={i}>
-                            • {h.date} ({h.time})
+                          <div key={i} className={h.isCancelled ? 'line-through text-red-400' : ''}>
+                            • {h.date} ({h.time}) {h.isCancelled && '[キャンセル済み]'}
                           </div>
                         ))}
                       </td>
