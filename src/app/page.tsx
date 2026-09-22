@@ -21,13 +21,17 @@ export default function Home() {
     const { data: spaceData } = await supabase.from('spaces').select('*')
     if (spaceData) setSpaces(spaceData)
 
-    // statusがcancelledではない（有効な）予約のみを取得
+    // 有効な予約のみを確実に取得（statusがcancelledではないもの）
     const { data: bookingData } = await supabase
       .from('bookings')
       .select('*')
-      .neq('status', 'cancelled')
+      .or('status.is.null,status.neq.cancelled')
 
-    if (bookingData) setBookings(bookingData)
+    if (bookingData) {
+      // さらにクライアント側でも確実に cancelled を除外する
+      const activeBookings = bookingData.filter(b => b.status !== 'cancelled')
+      setBookings(activeBookings)
+    }
     setLoading(false)
   }
 
@@ -96,9 +100,12 @@ export default function Home() {
             
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {dates.map((dateStr) => {
-                // b.booking_date または b.date の両方に対応できるように比較
+                // b.date または b.booking_date に一致し、かつアクティブな予約のみをカウント
                 const dayBookings = bookings.filter(
-                  (b) => b.space_id === space.id && (b.booking_date === dateStr || b.date === dateStr)
+                  (b) => 
+                    b.space_id === space.id && 
+                    (b.date === dateStr || b.booking_date === dateStr) &&
+                    b.status !== 'cancelled'
                 )
                 const isBooked = dayBookings.length > 0
 
