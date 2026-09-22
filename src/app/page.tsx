@@ -28,12 +28,16 @@ export default function Home() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [inputPassword, setInputPassword] = useState('')
 
-  // 2週間分のカレンダー生成
+  // 2週間分のカレンダー生成（今日を基準として毎日自動更新されるように修正）
   const today = new Date()
+  today.setHours(0, 0, 0, 0)
   const twoWeeksDates = Array.from({ length: 14 }, (_, i) => {
     const d = new Date(today)
     d.setDate(today.getDate() + i)
-    return d.toISOString().split('T')[0]
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   })
 
   useEffect(() => {
