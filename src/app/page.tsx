@@ -291,7 +291,7 @@ export default function Home() {
             <div className="rounded-xl overflow-hidden border border-gray-200 w-full h-72">
               <iframe
                 title="COCOKARA Map"
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3278.4!2d135.58!3d34.75!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6000e123456789ab%3A0x123456789abcdef!2z大阪府守口市金田町２丁目１−９!5e0!3m2!1sja!2sjp!4v1710000000000!5m2!1sja!2sjp"
+                src="https://maps.google.com/maps?q=%E5%A4%A7%E9%98%AA%E5%BA%9C%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9&t=&z=16&ie=UTF8&iwloc=&output=embed"
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
