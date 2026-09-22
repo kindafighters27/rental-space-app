@@ -105,13 +105,12 @@ export default function Home() {
             
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {dates.map((dateStr) => {
-                // データベース上の日付格納形式（YYYY-MM-DD部分）に一致するか安全にチェック
+                // String()で型を完全に統一して安全に比較
                 const dayBookings = bookings.filter((b) => {
-                  if (b.space_id !== space.id) return false
-                  const bDate = b.booking_date || b.date // どちらの列名でも対応
+                  if (String(b.space_id) !== String(space.id)) return false
+                  const bDate = b.booking_date || b.date 
                   if (!bDate) return false
-                  // 文字列の先頭10文字（YYYY-MM-DD）で比較
-                  return bDate.slice(0, 10) === dateStr
+                  return String(bDate).slice(0, 10) === dateStr
                 })
                 const isBooked = dayBookings.length > 0
 
