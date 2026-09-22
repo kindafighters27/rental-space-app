@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-function BookContent() {
+export default function BookPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const spaceId = searchParams.get('space_id')
@@ -17,14 +18,16 @@ function BookContent() {
   const [space, setSpace] = useState<any>(null)
   const [existingBookings, setExistingBookings] = useState<any[]>([])
   const [userName, setUserName] = useState('')
-  const [userEmail, setUserEmail] = useState('')
+  const [email, setEmail] = useState('')
   
-  const [startHour, setStartHour] = useState('10')
+  // 開始・終了時間の設定（初期値）
+  const [startHour, setStartHour] = useState('19')
   const [startMinute, setStartMinute] = useState('00')
-  const [endHour, setEndHour] = useState('12')
+  const [endHour, setEndHour] = useState('25')
   const [endMinute, setEndMinute] = useState('00')
-  
-  const [loading, setLoading] = useState(false)
+
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (spaceId && date) {
@@ -33,123 +36,128 @@ function BookContent() {
   }, [spaceId, date])
 
   const fetchSpaceAndBookings = async () => {
-    const { data: spaceData } = await supabase
+    const { data: spaceData, error: spaceError } = await supabase
       .from('spaces')
       .select('*')
       .eq('id', spaceId)
       .single()
-    if (spaceData) setSpace(spaceData)
+    
+    if (spaceError) {
+      console.error('スペース取得エラー:', spaceError)
+    } else if (spaceData) {
+      setSpace(spaceData)
+    }
 
-    const { data: bookingData } = await supabase
+    const { data: bookingData, error: bookingError } = await supabase
       .from('bookings')
       .select('*')
       .eq('space_id', spaceId)
+      .eq('booking_date', date)
       .neq('status', 'cancelled')
 
-    if (bookingData) {
-      const targetDate = date ? date.slice(0, 10) : ''
-      const filtered = bookingData.filter((b) => {
-        const bDate = b.booking_date || b.date
-        if (!bDate) return false
-        return String(bDate).slice(0, 10) === targetDate && b.status !== 'CANCELED'
-      })
-      setExistingBookings(filtered)
+    if (bookingError) {
+      console.error('予約情報取得エラー:', bookingError)
+    } else {
+      setExistingBookings(bookingData || [])
     }
-  }
-
-  // 時間文字列（"HH:mm:ss" または "HH:mm"）を安全にパースする関数
-  const timeToTotalMinutes = (timeStr: string) => {
-    if (!timeStr) return 0
-    const cleanTime = timeStr.slice(0, 5)
-    const [hStr, mStr] = cleanTime.split(':')
-    let h = parseInt(hStr, 10)
-    const m = parseInt(mStr || '0', 10)
     
-    // 03:00 や 25:00 などの深夜帯の扱いを統一（午前0時〜6時は +24時間する）
-    if (h >= 0 && h < 6) {
-      h += 24
-    }
-    return h * 60 + m
+    setLoading(false)
   }
 
-  // ユーザーが選択した開始・終了のトータル分
-  const startTotalMins = timeToTotalMinutes(`${startHour}:${startMinute}`)
-  
-  let endH = parseInt(endHour, 10)
-  const endM = parseInt(endMinute, 10)
-  if (endH >= 0 && endH < 6) {
-    endH += 24
-  }
-  let endTotalMins = endH * 60 + endM
-
-  // 開始時間と同じかそれ以前なら、最低30分後または終了時間が開始時間を超えるように調整（またはそのまま）
-  if (endTotalMins <= startTotalMins) {
-    endTotalMins += 24 * 60 // 翌日にまたがる場合の補正
-  }
-
+  // 料金計算ロジック（基本1〜6時間：15,000円、超過1時間ごと：+2,500円）
   const calculatePrice = () => {
-    const diffHours = (endTotalMins - startTotalMins) / 60
-    if (diffHours <= 0) return 0
-    if (diffHours <= 6) return 15000
-    return 15000 + Math.ceil(diffHours - 6) * 2500
+    const start = parseInt(startHour) + parseInt(startMinute) / 60
+    let end = parseInt(endHour) + parseInt(endMinute) / 60
+    
+    let diffHours = end - start
+    if (diffHours <= 0) {
+      diffHours += 24 // 日付を跨ぐ場合
+    }
+
+    if (diffHours <= 6) {
+      return 15000
+    } else {
+      const extraHours = Math.ceil(diffHours - 6)
+      return 15000 + (extraHours * 2500)
+    }
   }
 
   const totalPrice = calculatePrice()
 
-  // 厳密な重複判定ロジック
-  const isOverlap = existingBookings.some((b) => {
-    const bStart = timeToTotalMinutes(b.start_time)
-    let bEnd = timeToTotalMinutes(b.end_time)
+  // 時間文字列を小数の時間に変換するヘルパー（日付跨ぎ・30時対応）
+  const timeToDecimal = (timeStr: string, isEnd: boolean = false) => {
+    if (!timeStr) return 0
+    const parts = timeStr.split(':')
+    const h = parseInt(parts[0], 10) || 0
+    const m = parseInt(parts[1], 10) || 0
+    let total = h + m / 60
     
-    // 既存予約も日付を跨いで終了する場合の補正（例: 19:00 〜 01:00 の場合、01:00 は 25:00 に換算されるようにする）
-    if (bEnd <= bStart) {
-      bEnd += 24 * 60
+    // 終了時間が開始時間より小さい、あるいは深夜・朝方の数値の場合は翌日扱いとして24時間を足す
+    if (isEnd && total < 12) {
+      total += 24
     }
+    return total
+  }
 
-    // 重複条件: 「既存の開始 < ユーザーの終了」かつ「ユーザーの開始 < 既存の終了」
-    return startTotalMins < bEnd && endTotalMins > bStart
-  })
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 予約送信および重複判定処理
+  const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (startTotalMins >= endTotalMins) {
-      alert('終了時間は開始時間より後の時間を設定してください。')
+    if (!userName || !email) {
+      alert('お名前とメールアドレスを入力してください。')
       return
     }
 
-    if (isOverlap) {
-      alert('選択された時間帯はすでに予約が入っています。別の時間をお選びください。')
-      return
+    const newStartDecimal = parseInt(startHour) + parseInt(startMinute) / 60
+    let newEndDecimal = parseInt(endHour) + parseInt(endMinute) / 60
+    
+    if (newEndDecimal <= newStartDecimal) {
+      newEndDecimal += 24 // 深夜跨ぎ
     }
 
-    setLoading(true)
+    // 既存の予約との重複チェックロジック
+    for (const b of existingBookings) {
+      const existingStart = timeToDecimal(b.start_time, false)
+      let existingEnd = timeToDecimal(b.end_time, true)
 
-    const { error } = await supabase.from('bookings').insert([
-      {
-        space_id: spaceId,
-        date: date,
-        booking_date: date,
-        user_name: userName,
-        user_email: userEmail,
-        start_time: `${startHour}:${startMinute}`,
-        end_time: `${endHour}:${endMinute}`,
-        status: 'active',
-      },
-    ])
+      if (existingEnd <= existingStart) {
+        existingEnd += 24
+      }
 
-    if (error) {
-      alert('予約に失敗しました: ' + error.message)
-      setLoading(false)
-      return
+      // 時間の重複判定
+      if (newStartDecimal < existingEnd && newEndDecimal > existingStart) {
+        alert(`選択された時間帯（${startHour}:${startMinute} 〜 ${endHour}:${endMinute}）は、既存の予約（${b.start_time?.slice(0, 5)} 〜 ${b.end_time?.slice(0, 5)}）と重複しています。別の時間をお選びください。`)
+        return
+      }
     }
+
+    const startTimeStr = `${startHour}:${startMinute}:00`
+    const endTimeStr = `${endHour}:${endMinute}:00`
+
+    setSubmitting(true)
 
     try {
-      await fetch('/api/send-email', {
+      // データベースへの登録
+      const { error: insertError } = await supabase.from('bookings').insert([
+        {
+          space_id: spaceId,
+          booking_date: date,
+          user_name: userName,
+          email: email,
+          start_time: startTimeStr,
+          end_time: endTimeStr,
+          total_price: totalPrice,
+          status: 'active',
+        },
+      ])
+
+      if (insertError) throw insertError
+
+      // 管理者へのメール通知API呼び出し
+      const emailRes = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: userEmail,
+          to: email,
           userName,
           spaceName: space?.name || 'レンタルスペース',
           date,
@@ -158,148 +166,152 @@ function BookContent() {
           price: totalPrice,
         }),
       })
-    } catch (mailError) {
-      console.error('メール送信エラー:', mailError)
-    }
 
-    alert('予約が完了しました！')
-    router.push('/')
+      if (!emailRes.ok) {
+        console.error('メール通知の送信に失敗しました')
+      }
+
+      alert('仮予約を受け付けました！管理者に通知が送信されました。')
+      router.push('/')
+    } catch (error: any) {
+      console.error('予約エラー:', error)
+      alert(`予約に失敗しました: ${error.message || error}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
+  // 00時〜30時までの選択肢を生成
+  const hours = Array.from({ length: 31 }, (_, i) => String(i).padStart(2, '0'))
+
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-xl mx-auto bg-white p-6 md:p-8 rounded-xl shadow-md border border-gray-200">
-        <div className="mb-6">
-          <a href="/" className="text-sm text-emerald-600 hover:underline">← カレンダーに戻る</a>
-          <h1 className="text-2xl font-bold text-gray-900 mt-2">予約申し込み</h1>
-          {space && <p className="text-gray-600 font-semibold">{space.name}</p>}
-          <p className="text-sm text-gray-500 mt-1">予約日: {date}</p>
-        </div>
+    <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
+        <Link href="/" className="text-emerald-600 font-bold text-sm hover:underline">
+          ← トップページに戻る
+        </Link>
+        <h1 className="text-lg font-bold text-gray-900">スペース予約お申し込み</h1>
+        <div className="w-20"></div>
+      </header>
 
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-xs font-bold text-amber-800 mb-1">⚠️ 本日の予約済み時間帯:</p>
-          {existingBookings.length === 0 ? (
-            <p className="text-xs text-amber-700">現在、この日の予約はありません。</p>
-          ) : (
-            <ul className="text-xs text-amber-700 space-y-1">
-              {existingBookings.map((b, i) => (
-                <li key={i}>
-                  • {b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)} （予約済み）
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <div className="max-w-xl mx-auto px-4 mt-8">
+        {loading ? (
+          <div className="text-center py-20 text-gray-500">読み込み中...</div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-6 md:p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">{space?.name}</h2>
+            <p className="text-xs text-emerald-600 font-bold mb-6">予約日: {date}</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">お名前</label>
-            <input
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none"
-              placeholder="山田 太郎"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">メールアドレス</label>
-            <input
-              type="email"
-              value={userEmail}
-              onChange={(e) => setUserEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none"
-              placeholder="example@email.com"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">開始時間</label>
-              <div className="flex space-x-2">
-                <select
-                  value={startHour}
-                  onChange={(e) => setStartHour(e.target.value)}
-                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold text-gray-900"
-                >
-                  {Array.from({ length: 24 }).map((_, i) => (
-                    <option key={i} value={String(i).padStart(2, '0')}>
-                      {String(i).padStart(2, '0')}時
-                    </option>
+            {/* 予約済み時間帯の表示 */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <h3 className="text-xs font-bold text-gray-700 mb-2">⚠️ 本日の予約済み時間帯:</h3>
+              {existingBookings.length === 0 ? (
+                <p className="text-xs text-emerald-600 font-medium">現在、この日の予約はありません。</p>
+              ) : (
+                <ul className="space-y-1">
+                  {existingBookings.map((b, i) => (
+                    <li key={i} className="text-xs text-red-600 font-semibold">
+                      • {b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)} （予約済み）
+                    </li>
                   ))}
-                </select>
-                <select
-                  value={startMinute}
-                  onChange={(e) => setStartMinute(e.target.value)}
-                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold text-gray-900"
-                >
-                  <option value="00">00分</option>
-                  <option value="30">30分</option>
-                </select>
+                </ul>
+              )}
+            </div>
+
+            <form onSubmit={handleBooking} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">お名前</label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  required
+                  placeholder="例：山田 太郎"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:border-emerald-500"
+                />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">終了時間</label>
-              <div className="flex space-x-2">
-                <select
-                  value={endHour}
-                  onChange={(e) => setEndHour(e.target.value)}
-                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold text-gray-900"
-                >
-                  {Array.from({ length: 27 }).map((_, i) => (
-                    <option key={i} value={String(i).padStart(2, '0')}>
-                      {String(i).padStart(2, '0')}時
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={endMinute}
-                  onChange={(e) => setEndMinute(e.target.value)}
-                  className="border border-gray-300 rounded-lg p-2 bg-white text-sm font-bold text-gray-900"
-                >
-                  <option value="00">00分</option>
-                  <option value="30">30分</option>
-                </select>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">メールアドレス</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="例：example@gmail.com"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:border-emerald-500"
+                />
               </div>
-            </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* 開始時間 */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">開始時間</label>
+                  <div className="flex space-x-2">
+                    <select
+                      value={startHour}
+                      onChange={(e) => setStartHour(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm bg-white"
+                    >
+                      {hours.map((h) => (
+                        <option key={h} value={h}>{h}時</option>
+                      ))}
+                    </select>
+                    <select
+                      value={startMinute}
+                      onChange={(e) => setStartMinute(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm bg-white"
+                    >
+                      <option value="00">00分</option>
+                      <option value="30">30分</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 終了時間（30時まで対応） */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">終了時間</label>
+                  <div className="flex space-x-2">
+                    <select
+                      value={endHour}
+                      onChange={(e) => setEndHour(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm bg-white"
+                    >
+                      {hours.map((h) => (
+                        <option key={h} value={h}>{h}時</option>
+                      ))}
+                    </select>
+                    <select
+                      value={endMinute}
+                      onChange={(e) => setEndMinute(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm bg-white"
+                    >
+                      <option value="00">00分</option>
+                      <option value="30">30分</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* 料金表示 */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center mt-6">
+                <span className="text-xs font-bold text-emerald-800">お支払い予定金額</span>
+                <div className="text-2xl font-black text-emerald-600 mt-1">
+                  ¥{totalPrice.toLocaleString()}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition shadow-md disabled:opacity-50 mt-4"
+              >
+                {submitting ? '処理中...' : '予約を確定する'}
+              </button>
+            </form>
           </div>
-
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
-            <span className="text-xs font-semibold text-emerald-800">お支払い予定金額</span>
-            <div className="text-2xl font-bold text-emerald-600 mt-1">¥{totalPrice.toLocaleString()}</div>
-          </div>
-
-          {isOverlap && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-bold">
-              ⚠️ 選択された時間帯は、すでに予約が入っている時間と重複しています。別の時間をお選びください。
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || isOverlap}
-            className={`w-full font-bold py-3 rounded-lg transition ${
-              isOverlap
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-emerald-600 text-white hover:bg-emerald-700'
-            }`}
-          >
-            {loading ? '処理中...' : isOverlap ? '予約できない時間帯です' : '予約を確定する'}
-          </button>
-        </form>
+        )}
       </div>
     </main>
-  )
-}
-
-export default function BookPage() {
-  return (
-    <Suspense fallback={<div className="p-8 text-center">読み込み中...</div>}>
-      <BookContent />
-    </Suspense>
   )
 }
