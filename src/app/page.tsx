@@ -96,8 +96,9 @@ export default function Home() {
             
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {dates.map((dateStr) => {
+                // b.booking_date または b.date の両方に対応できるように比較
                 const dayBookings = bookings.filter(
-                  (b) => b.space_id === space.id && b.date === dateStr
+                  (b) => b.space_id === space.id && (b.booking_date === dateStr || b.date === dateStr)
                 )
                 const isBooked = dayBookings.length > 0
 
