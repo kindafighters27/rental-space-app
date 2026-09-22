@@ -19,7 +19,6 @@ export default function BookPage() {
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
   
-  // 開始・終了の時分
   const [startHour, setStartHour] = useState('10')
   const [startMinute, setStartMinute] = useState('00')
   const [endHour, setEndHour] = useState('12')
@@ -34,7 +33,6 @@ export default function BookPage() {
   }, [spaceId, date])
 
   const fetchSpaceAndBookings = async () => {
-    // スペース情報の取得
     const { data: spaceData } = await supabase
       .from('spaces')
       .select('*')
@@ -55,27 +53,37 @@ export default function BookPage() {
     }
   }
 
+  // 時間を「分（数値）」に変換して比較しやすくする補助関数
+  const timeToMins = (timeStr: string) => {
+    if (!timeStr) return 0
+    const [h, m] = timeStr.slice(0, 5).split(':').map(Number)
+    // 深夜0時を過ぎる場合（例: 01:00など）の考慮（24時間を超える数値にする）
+    const hours = h < 6 ? h + 24 : h
+    return hours * 60 + m
+  }
+
+  const startMins = parseInt(startHour) * 60 + parseInt(startMinute)
+  // 終了時間が深夜（例: 01:00）の場合の対応
+  const endHNum = parseInt(endHour)
+  const adjustedEndH = endHNum < 6 ? endHNum + 24 : endHNum
+  const endMins = adjustedEndH * 60 + parseInt(endMinute)
+
   const startTimeStr = `${startHour}:${startMinute}`
   const endTimeStr = `${endHour}:${endMinute}`
 
-  // 時間の重複をチェックする関数
-  const checkIsOverlap = (start: string, end: string) => {
-    return existingBookings.some((b) => {
-      const bStart = b.start_time.slice(0, 5)
-      const bEnd = b.end_time.slice(0, 5)
-      return start < bEnd && end > bStart
-    })
-  }
+  // 厳密な重複チェック（既存の予約の時間帯と少しでも重なっていたらtrue）
+  const isOverlap = existingBookings.some((b) => {
+    const bStartMins = timeToMins(b.start_time)
+    const bEndMins = timeToMins(b.end_time)
 
-  const isOverlap = checkIsOverlap(startTimeStr, endTimeStr)
+    // 重複条件: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
+    return startMins < bEndMins && endMins > bStartMins
+  })
 
-  // 料金計算ロジック（必要に応じて調整可能）
+  // 料金計算ロジック
   const calculatePrice = () => {
-    const startMins = parseInt(startHour) * 60 + parseInt(startMinute)
-    const endMins = parseInt(endHour) * 60 + parseInt(endMinute)
     const diffHours = (endMins - startMins) / 60
     if (diffHours <= 0) return 0
-    // 例: 1時間あたり2500円として計算
     const hourlyRate = 2500
     return Math.round(diffHours * hourlyRate)
   }
@@ -89,7 +97,7 @@ export default function BookPage() {
       return
     }
 
-    if (startTimeStr >= endTimeStr) {
+    if (startMins >= endMins) {
       alert('終了時間は開始時間より後の時間を設定してください。')
       return
     }
