@@ -288,7 +288,6 @@ export default function Home() {
                 { name: '飲酒可', icon: '🍷' },
                 { name: '片付けおまかせ', icon: '✨' },
                 { name: 'ゴミ処理おまかせ', icon: '🗑️' },
-                { name: 'Wi-Fi（光回線・他）', icon: '📶' },
               ].map((item, idx) => (
                 <div key={idx} className="bg-gray-50 border border-gray-200/80 rounded-xl p-3 text-center flex flex-col items-center justify-center transition hover:bg-emerald-50/30 hover:border-emerald-200">
                   <span className="text-xl mb-1">{item.icon}</span>
@@ -543,7 +542,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py.2.5 rounded-xl text-xs transition shadow-sm"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
               >
                 ログイン
               </button>
