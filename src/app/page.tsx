@@ -28,7 +28,7 @@ export default function Home() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [inputPassword, setInputPassword] = useState('')
 
-  // 2週間分のカレンダー生成（今日を基準として毎日自動更新されるように修正）
+  // 2週間分のカレンダー生成（今日を基準として毎日自動更新）
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const twoWeeksDates = Array.from({ length: 14 }, (_, i) => {
@@ -83,7 +83,7 @@ export default function Home() {
     (b) => b.space_id === selectedSpace?.id && b.date === selectedDate
   )
 
-  // 終了後1時間のバッファー（選択不可にするロジック）
+  // 終了後1時間のバッファーを含めて時間帯が選択不可か判定するロジック
   const isTimeSlotDisabled = (timeStr: string) => {
     if (!selectedDate) return false
     const timeVal = parseInt(timeStr.split(':')[0])
@@ -128,6 +128,16 @@ export default function Home() {
     if (endH <= startH) {
       alert('終了時間は開始時間より後に設定してください。')
       return
+    }
+
+    // 選択された時間帯の中に既存の予約やバッファー時間が含まれていないか二重チェック
+    const startVal = parseInt(startTime.split(':')[0])
+    const endVal = parseInt(endTime.split(':')[0])
+    for (let t = startVal; t < endVal; t++) {
+      if (isTimeSlotDisabled(`${String(t).padStart(2, '0')}:00`)) {
+        alert('選択された時間帯に既存の予約（または準備時間）が含まれています。別の時間をお選びください。')
+        return
+      }
     }
 
     const newBookingData = {
@@ -314,11 +324,15 @@ export default function Home() {
             </ul>
           </div>
 
-          {/* カレンダー（0件=空きあり, 1件=△, 2件以上=×） */}
+          {/* カレンダー（過去日付は選択不可） */}
           <div>
             <h3 className="text-xs font-bold text-gray-900 mb-3">予約空き状況（2週間）</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {twoWeeksDates.map((dateStr) => {
+                const targetDate = new Date(dateStr)
+                targetDate.setHours(0, 0, 0, 0)
+                const isPast = targetDate < today
+
                 const dayBookings = bookings.filter(
                   (b) => b.space_id === selectedSpace?.id && b.date === dateStr
                 )
@@ -326,7 +340,10 @@ export default function Home() {
 
                 let statusText = '空きあり'
                 let statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                if (count === 1) {
+                if (isPast) {
+                  statusText = 'ー 終了'
+                  statusColor = 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed'
+                } else if (count === 1) {
                   statusText = '△ 残りわずか'
                   statusColor = 'bg-amber-50 text-amber-700 border-amber-200'
                 } else if (count >= 2) {
@@ -337,10 +354,18 @@ export default function Home() {
                 return (
                   <div
                     key={dateStr}
-                    onClick={() => setSelectedDate(dateStr)}
-                    className={`p-3 rounded-xl border text-center cursor-pointer transition ${
-                      selectedDate === dateStr ? 'ring-2 ring-emerald-500 bg-emerald-50/50' : 'hover:bg-gray-50'
-                    } ${statusColor}`}
+                    onClick={() => {
+                      if (!isPast) {
+                        setSelectedDate(dateStr)
+                      }
+                    }}
+                    className={`p-3 rounded-xl border text-center transition ${
+                      isPast
+                        ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                        : selectedDate === dateStr
+                        ? 'ring-2 ring-emerald-500 bg-emerald-50/50 cursor-pointer'
+                        : 'hover:bg-gray-50 cursor-pointer'
+                    } ${!isPast ? statusColor : ''}`}
                   >
                     <div className="text-[11px] font-bold">{dateStr.slice(5)}</div>
                     <div className="text-[10px] font-semibold mt-1">{statusText}</div>
@@ -386,11 +411,14 @@ export default function Home() {
                     required
                   >
                     <option value="">終了時間を選択</option>
-                    {endTimeOptions.map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
+                    {endTimeOptions.map((time) => {
+                      const disabled = isTimeSlotDisabled(time)
+                      return (
+                        <option key={time} value={time} disabled={disabled}>
+                          {time} {disabled ? '（予約不可・バッファー含む）' : ''}
+                        </option>
+                      )
+                    })}
                   </select>
                 </div>
               </div>
@@ -515,7 +543,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py.2.5 rounded-xl text-xs transition shadow-sm"
               >
                 ログイン
               </button>
