@@ -284,7 +284,7 @@ export default function Home() {
           {/* 設備・備品・サービス紹介セクション */}
           <div className="mb-8 border-t border-gray-100 pt-6">
             <h3 className="text-xs font-bold text-gray-900 mb-4 tracking-wider uppercase">設備・備品・サービス</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 mb-6">
               {[
                 { name: '個室（壁・扉あり）', icon: '🚪' },
                 { name: 'トイレ', icon: '🚻' },
@@ -301,6 +301,31 @@ export default function Home() {
                   <span className="text-[11px] font-semibold text-gray-700">{item.name}</span>
                 </div>
               ))}
+            </div>
+
+            {/* ご要望の各種規約・マニュアルボタン追加欄 */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
+              <button
+                onClick={() => alert('利用規約ページは準備中です。')}
+                className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
+              >
+                <span>📜</span>
+                <span>利用規約を確認する</span>
+              </button>
+              <button
+                onClick={() => alert('ハウスルールページは準備中です。')}
+                className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
+              >
+                <span>📋</span>
+                <span>ハウスルールを確認する</span>
+              </button>
+              <button
+                onClick={() => alert('入退出マニュアルページは準備中です。')}
+                className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
+              >
+                <span>🔑</span>
+                <span>入退出マニュアルを確認する</span>
+              </button>
             </div>
           </div>
 
