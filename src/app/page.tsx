@@ -357,7 +357,6 @@ export default function Home() {
                   statusColor = 'bg-red-50 text-red-700 border-red-200'
                 }
 
-                // 月日（MM-DD）の形式からスラッシュをハイフンに置き換えつつ曜日を付与
                 const formattedDate = `${dateStr.slice(5).replace('/', '-')}（${getDayOfWeek(dateStr)}）`
 
                 return (
