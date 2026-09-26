@@ -247,7 +247,9 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-16">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-40">
-        <h1 className="text-sm font-bold text-gray-900">COCOKARA レンタルスペース</h1>
+        <Link href="/" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition">
+          COCOKARA レンタルスペース
+        </Link>
         <div className="flex space-x-3 items-center">
           <button
             onClick={() => setCancelModalOpen(true)}
@@ -303,29 +305,35 @@ export default function Home() {
               ))}
             </div>
 
-            {/* ご要望の各種規約・マニュアルボタン追加欄 */}
+            {/* 各種規約・マニュアル確認ボタン */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
-              <button
-                onClick={() => alert('利用規約ページは準備中です。')}
+              <a
+                href="/利用規約2026.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
               >
                 <span>📜</span>
                 <span>利用規約を確認する</span>
-              </button>
-              <button
-                onClick={() => alert('ハウスルールページは準備中です。')}
+              </a>
+              <a
+                href="/ハウスルール_COCOKARA2026.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
               >
                 <span>📋</span>
                 <span>ハウスルールを確認する</span>
-              </button>
-              <button
-                onClick={() => alert('入退出マニュアルページは準備中です。')}
+              </a>
+              <a
+                href="/入退出マニュアル2026.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
               >
                 <span>🔑</span>
                 <span>入退出マニュアルを確認する</span>
-              </button>
+              </a>
             </div>
           </div>
 
