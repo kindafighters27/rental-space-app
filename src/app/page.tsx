@@ -305,10 +305,10 @@ export default function Home() {
               ))}
             </div>
 
-            {/* 各種規約・マニュアル確認ボタン */}
+            {/* 各種規約・マニュアル確認ボタン（新規ファイル名に対応） */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
               <a
-                href="/利用規約2026.pdf"
+                href="/kiyaku2026.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
@@ -317,7 +317,7 @@ export default function Home() {
                 <span>利用規約を確認する</span>
               </a>
               <a
-                href="/ハウスルール_COCOKARA2026.pdf"
+                href="/hausururu2026_COCOKARA.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
@@ -326,7 +326,7 @@ export default function Home() {
                 <span>ハウスルールを確認する</span>
               </a>
               <a
-                href="/入退出マニュアル2026.pdf"
+                href="/taishuru2026.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
