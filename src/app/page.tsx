@@ -247,10 +247,17 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-16">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-40">
-        <Link href="/" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition">
-          COCOKARA レンタルスペース
+        <Link href="/" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition flex items-center space-x-1.5">
+          <span>🏠</span>
+          <span>COCOKARA レンタルスペース</span>
         </Link>
         <div className="flex space-x-3 items-center">
+          <Link
+            href="/"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center space-x-1"
+          >
+            <span>トップページに戻る</span>
+          </Link>
           <button
             onClick={() => setCancelModalOpen(true)}
             className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs transition"
@@ -305,7 +312,7 @@ export default function Home() {
               ))}
             </div>
 
-            {/* 各種規約・マニュアル確認ボタン（新規ファイル名に対応） */}
+            {/* 各種規約・マニュアル確認ボタン */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
               <a
                 href="/kiyaku2026.pdf"
