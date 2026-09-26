@@ -28,6 +28,11 @@ export default function Home() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [inputPassword, setInputPassword] = useState('')
 
+  // 各種PDF閲覧用モーダル
+  const [pdfModalOpen, setPdfModalOpen] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState('')
+  const [pdfTitle, setPdfTitle] = useState('')
+
   // 2週間分のカレンダー生成（今日を基準として毎日自動更新）
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -244,6 +249,12 @@ export default function Home() {
     }
   }
 
+  const openPdfModal = (url: string, title: string) => {
+    setPdfUrl(url)
+    setPdfTitle(title)
+    setPdfModalOpen(true)
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-16">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-40">
@@ -312,35 +323,29 @@ export default function Home() {
               ))}
             </div>
 
-            {/* 各種規約・マニュアル確認ボタン */}
+            {/* 各種規約・マニュアル確認ボタン（ポップアップモーダル表示に変更） */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
-              <a
-                href="/kiyaku2026.pdf"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => openPdfModal('/kiyaku2026.pdf', '利用規約')}
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
               >
                 <span>📜</span>
                 <span>利用規約を確認する</span>
-              </a>
-              <a
-                href="/hausururu2026_COCOKARA.pdf"
-                target="_blank"
-                rel="noopener noreferrer"
+              </button>
+              <button
+                onClick={() => openPdfModal('/hausururu2026_COCOKARA.pdf', 'ハウスルール')}
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
               >
                 <span>📋</span>
                 <span>ハウスルールを確認する</span>
-              </a>
-              <a
-                href="/taishuru2026.pdf"
-                target="_blank"
-                rel="noopener noreferrer"
+              </button>
+              <button
+                onClick={() => openPdfModal('/taishuru2026.pdf', '入退出マニュアル')}
                 className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
               >
                 <span>🔑</span>
                 <span>入退出マニュアルを確認する</span>
-              </a>
+              </button>
             </div>
           </div>
 
@@ -513,6 +518,43 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* PDF閲覧用ポップアップモーダル（「トップページに戻る」ボタン付き） */}
+      {pdfModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col h-[85vh]">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+              <h3 className="text-sm font-bold text-gray-900">{pdfTitle}</h3>
+              <button
+                onClick={() => setPdfModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-lg px-2"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* PDF表示エリア */}
+            <div className="flex-1 bg-gray-100 rounded-xl overflow-hidden mb-4 border border-gray-200">
+              <iframe
+                src={pdfUrl}
+                title={pdfTitle}
+                className="w-full h-full"
+              />
+            </div>
+
+            {/* トップページに戻る大きなボタン */}
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setPdfModalOpen(false)}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-sm flex items-center justify-center space-x-2"
+              >
+                <span>🏠</span>
+                <span>トップページに戻る</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {cancelModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
