@@ -33,12 +33,20 @@ export default function Home() {
   const [pdfUrl, setPdfUrl] = useState('')
   const [pdfTitle, setPdfTitle] = useState('')
 
-  // 2週間分のカレンダー生成（今日を基準として毎日自動更新）
+  // カレンダーの表示オフセット（週単位の移動用：0〜2週間先まで＝最大1ヶ月分）
+  const [weekOffset, setWeekOffset] = useState(0)
+
+  // 今日を基準とした日付のベース
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+
+  // 基準日からオフセットに応じた14日間（2週間分）を生成
+  const startDate = new Date(today)
+  startDate.setDate(today.getDate() + weekOffset * 7)
+
   const twoWeeksDates = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(today.getDate() + i)
+    const d = new Date(startDate)
+    d.setDate(startDate.getDate() + i)
     const year = d.getFullYear()
     const month = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
@@ -323,7 +331,7 @@ export default function Home() {
               ))}
             </div>
 
-            {/* 各種規約・マニュアル確認ボタン（ポップアップモーダル表示に変更） */}
+            {/* 各種規約・マニュアル確認ボタン */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
               <button
                 onClick={() => openPdfModal('/kiyaku2026.pdf', '利用規約')}
@@ -375,9 +383,38 @@ export default function Home() {
             </ul>
           </div>
 
-          {/* カレンダー（過去日付は選択不可） */}
+          {/* 予約カレンダー（＜ ＞ボタンで週送り・最大1ヶ月＝2週間オフセット×2＝最大オフセット2程度） */}
           <div>
-            <h3 className="text-xs font-bold text-gray-900 mb-3">予約空き状況（2週間）</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-xs font-bold text-gray-900">予約空き状況（最大1ヶ月先まで）</h3>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setWeekOffset((prev) => Math.max(0, prev - 1))}
+                  disabled={weekOffset === 0}
+                  className={`p-1.5 rounded-lg border text-xs font-bold transition ${
+                    weekOffset === 0
+                      ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed'
+                      : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-sm'
+                  }`}
+                  title="前の週へ"
+                >
+                  ＜ 前の週
+                </button>
+                <button
+                  onClick={() => setWeekOffset((prev) => Math.min(2, prev + 1))}
+                  disabled={weekOffset >= 2}
+                  className={`p-1.5 rounded-lg border text-xs font-bold transition ${
+                    weekOffset >= 2
+                      ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed'
+                      : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-sm'
+                  }`}
+                  title="次の週へ"
+                >
+                  次の週 ＞
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
               {twoWeeksDates.map((dateStr) => {
                 const targetDate = new Date(dateStr)
@@ -519,7 +556,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* PDF閲覧用ポップアップモーダル（「トップページに戻る」ボタン付き） */}
+      {/* PDF閲覧用ポップアップモーダル */}
       {pdfModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col h-[85vh]">
@@ -533,7 +570,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* PDF表示エリア */}
             <div className="flex-1 bg-gray-100 rounded-xl overflow-hidden mb-4 border border-gray-200">
               <iframe
                 src={pdfUrl}
@@ -542,7 +578,6 @@ export default function Home() {
               />
             </div>
 
-            {/* トップページに戻る大きなボタン */}
             <div className="flex space-x-3">
               <button
                 onClick={() => setPdfModalOpen(false)}
