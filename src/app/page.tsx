@@ -40,6 +40,13 @@ export default function Home() {
     return `${year}-${month}-${day}`
   })
 
+  // 曜日を取得するヘルパー関数
+  const getDayOfWeek = (dateStr: string) => {
+    const days = ['日', '月', '火', '水', '木', '金', '土']
+    const d = new Date(dateStr)
+    return days[d.getDay()]
+  }
+
   useEffect(() => {
     fetchInitialData()
   }, [])
@@ -108,9 +115,9 @@ export default function Home() {
     if (hours <= 0) return 0
 
     if (hours <= 6) {
-      return 15000
+      return 12000
     } else {
-      return 15000 + (hours - 6) * 2500
+      return 12000 + (hours - 6) * 2000
     }
   }
 
@@ -318,8 +325,8 @@ export default function Home() {
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <h3 className="text-xs font-bold text-amber-900 mb-2">利用料金プラン</h3>
             <ul className="text-xs text-amber-800 space-y-1">
-              <li>・基本料金（1〜6時間まで）: ¥15,000</li>
-              <li>・6時間超過分: 1時間につき +¥2,500</li>
+              <li>・基本料金（1〜6時間まで）: ¥12,000</li>
+              <li>・6時間超過分: 1時間につき +¥2,000</li>
             </ul>
           </div>
 
@@ -350,6 +357,9 @@ export default function Home() {
                   statusColor = 'bg-red-50 text-red-700 border-red-200'
                 }
 
+                // 月日（MM-DD）の形式からスラッシュをハイフンに置き換えつつ曜日を付与
+                const formattedDate = `${dateStr.slice(5).replace('/', '-')}（${getDayOfWeek(dateStr)}）`
+
                 return (
                   <div
                     key={dateStr}
@@ -366,7 +376,7 @@ export default function Home() {
                         : 'hover:bg-gray-50 cursor-pointer'
                     } ${!isPast ? statusColor : ''}`}
                   >
-                    <div className="text-[11px] font-bold">{dateStr.slice(5)}</div>
+                    <div className="text-[11px] font-bold">{formattedDate}</div>
                     <div className="text-[10px] font-semibold mt-1">{statusText}</div>
                   </div>
                 )
