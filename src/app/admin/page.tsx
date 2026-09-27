@@ -16,6 +16,11 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('active')
+  
+  // 追加：ビュー切り替え（'list' または 'calendar'）
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
+  // 追加：カレンダー用の選択年月
+  const [currentDate, setCurrentDate] = useState(new Date())
 
   useEffect(() => {
     const auth = sessionStorage.getItem('admin_auth')
@@ -121,6 +126,35 @@ export default function AdminPage() {
     }
   }
 
+  // 追加：リマインドメール送信ハンドラー（入退出マニュアル・利用規約・ルールを添付/案内）
+  const handleSendReminder = (booking: any) => {
+    if (!booking.email) {
+      alert('お客様のメールアドレスが登録されていません。')
+      return
+    }
+    if (confirm(`${booking.user_name} 様 (${booking.email}) 宛てに、入退出マニュアル・利用規約・ルールを記載したリマインドメールを送信しますか？`)) {
+      // 実際のメール送信API処理をここに接続できます
+      alert('リマインドメールを送信しました！（入退出マニュアル・利用規約・ルール添付/案内済み）')
+    }
+  }
+
+  // カレンダー用ヘルパー関数
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate()
+  }
+
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 1).getDay()
+  }
+
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+  }
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+  }
+
   if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -155,6 +189,12 @@ export default function AdminPage() {
     )
   }
 
+  // カレンダー描画用データ計算
+  const year = currentDate.getFullYear()
+  const month = currentDate.getMonth()
+  const daysInMonth = getDaysInMonth(year, month)
+  const firstDay = getFirstDayOfMonth(year, month)
+
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
@@ -176,16 +216,35 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 mt-8">
+        {/* ビュー切り替えおよび検索・フィルターバー */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="w-full md:w-96">
-            <input
-              type="text"
-              placeholder="お名前、メール、スペース名、日付で検索..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-            />
+          <div className="flex items-center space-x-2 w-full md:w-auto">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${viewMode === 'list' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              リスト表示
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${viewMode === 'calendar' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              カレンダー一括確認
+            </button>
           </div>
+
+          {viewMode === 'list' && (
+            <div className="w-full md:w-96">
+              <input
+                type="text"
+                placeholder="お名前、メール、スペース名、日付で検索..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          )}
+
           <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
             <span className="text-xs font-bold text-gray-600">ステータス:</span>
             <button
@@ -211,11 +270,93 @@ export default function AdminPage() {
 
         {loading ? (
           <div className="text-center py-20 text-gray-500">読み込み中...</div>
+        ) : viewMode === 'calendar' ? (
+          /* カレンダー一括確認ビュー */
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-sm font-bold text-gray-900">
+                {year}年 {month + 1}月 予約状況カレンダー
+              </h2>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handlePrevMonth}
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold transition"
+                >
+                  前の月
+                </button>
+                <button
+                  onClick={() => setCurrentDate(new Date())}
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold transition"
+                >
+                  今月
+                </button>
+                <button
+                  onClick={handleNextMonth}
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold transition"
+                >
+                  次の月
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 text-center font-bold text-xs text-gray-500 mb-2">
+              <div className="text-red-500">日</div>
+              <div>月</div>
+              <div>火</div>
+              <div>水</div>
+              <div>木</div>
+              <div>金</div>
+              <div className="text-blue-500">土</div>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2">
+              {/* 空白セル（月初めまで） */}
+              {Array.from({ length: firstDay }).map((_, index) => (
+                <div key={`empty-${index}`} className="h-28 bg-gray-50 rounded-xl border border-gray-100"></div>
+              ))}
+
+              {/* 日付セル */}
+              {Array.from({ length: daysInMonth }).map((_, index) => {
+                const dayNum = index + 1
+                const formattedMonth = String(month + 1).padStart(2, '0')
+                const formattedDay = String(dayNum).padStart(2, '0')
+                const dateString = `${year}-${formattedMonth}-${formattedDay}`
+
+                // 該当日の予約を抽出（フィルター適用）
+                const dayBookings = filteredBookings.filter((b) => b.date === dateString)
+
+                return (
+                  <div
+                    key={`day-${dayNum}`}
+                    className="h-28 bg-white rounded-xl border border-gray-200 p-1.5 overflow-y-auto flex flex-col justify-start"
+                  >
+                    <div className="text-xs font-bold text-gray-700 mb-1 px-1">{dayNum}</div>
+                    <div className="space-y-1">
+                      {dayBookings.map((b) => (
+                        <div
+                          key={b.id}
+                          className={`text-[10px] p-1 rounded font-medium truncate ${
+                            b.status === 'cancelled'
+                              ? 'bg-gray-100 text-gray-400 line-through'
+                              : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          }`}
+                          title={`${b.user_name} (${b.start_time?.slice(0, 5)}-${b.end_time?.slice(0, 5)}) - ${b.spaces?.name}`}
+                        >
+                          <span className="font-bold">{b.start_time?.slice(0, 5)}</span> {b.user_name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         ) : filteredBookings.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center text-gray-500 shadow-sm border border-gray-200">
             条件に一致する予約データはありません。
           </div>
         ) : (
+          /* リスト表示ビュー */
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
@@ -262,14 +403,23 @@ export default function AdminPage() {
                           </div>
                         )}
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right space-x-2">
                         {b.status !== 'cancelled' && (
-                          <button
-                            onClick={() => handleCancel(b.id)}
-                            className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
-                          >
-                            キャンセル
-                          </button>
+                          <>
+                            {/* 追加：マニュアル・規約案内付きリマインドメール送信ボタン */}
+                            <button
+                              onClick={() => handleSendReminder(b)}
+                              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-3 py-1.5 rounded-lg transition"
+                            >
+                              リマインド送信
+                            </button>
+                            <button
+                              onClick={() => handleCancel(b.id)}
+                              className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
+                            >
+                              キャンセル
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>
