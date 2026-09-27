@@ -26,12 +26,15 @@ export default function AdminPage() {
   // 追加：売上管理で選択されている年（例: "2026", "2027" 等）
   const [selectedSalesYear, setSelectedSalesYear] = useState<string>('2026')
 
-  // 追加：インライン編集用の状態管理（編集中の予約IDとフォーム入力値）
+  // 追加：インライン編集用の状態管理（編集中の予約IDとフォーム入力値：日付、時間項目を追加）
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
     user_name: '',
     email: '',
     total_price: 0,
+    date: '',
+    start_time: '',
+    end_time: '',
   })
 
   useEffect(() => {
@@ -155,30 +158,42 @@ export default function AdminPage() {
     }
   }
 
-  // 追加：編集モードの開始
+  // 編集モードの開始（日付・時間の初期値もセット）
   const handleStartEdit = (b: any) => {
     setEditingBookingId(b.id)
     setEditForm({
       user_name: b.user_name || '',
       email: b.email || '',
       total_price: b.total_price || 0,
+      date: b.date || '',
+      start_time: b.start_time ? b.start_time.slice(0, 5) : '',
+      end_time: b.end_time ? b.end_time.slice(0, 5) : '',
     })
   }
 
-  // 追加：編集のキャンセル
+  // 編集のキャンセル
   const handleCancelEdit = () => {
     setEditingBookingId(null)
   }
 
-  // 追加：編集内容の保存処理
+  // 編集内容の保存処理（日付・時間も含めて更新）
   const handleSaveEdit = async (id: string) => {
+    const updatePayload: any = {
+      user_name: editForm.user_name,
+      email: editForm.email,
+      total_price: Number(editForm.total_price),
+      date: editForm.date,
+    }
+    if (editForm.start_time) {
+      updatePayload.start_time = editForm.start_time.length === 5 ? `${editForm.start_time}:00` : editForm.start_time
+    }
+    if (editForm.end_time) {
+      updatePayload.end_time = editForm.end_time.length === 5 ? `${editForm.end_time}:00` : editForm.end_time
+    }
+
     const { error } = await supabase
       .from('bookings')
-      .update({
-        user_name: editForm.user_name,
-        email: editForm.email,
-        total_price: Number(editForm.total_price),
-      })
+      .update(updatePayload)
       .eq('id', id)
 
     if (error) {
@@ -440,7 +455,7 @@ export default function AdminPage() {
             {/* 月別個別予約リスト ＆ 末尾合計集計 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-sm font-bold text-gray-900">月別個別予約・売上明細（※各行の「編集」ボタンから名前・アドレス・金額の修正が可能です）</h2>
+                <h2 className="text-sm font-bold text-gray-900">月別個別予約・売上明細（※各行の「編集」ボタンから過去・未来の予約日・時間・お名前・アドレス・金額の修正が可能です）</h2>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-bold text-gray-600">表示月を選択:</span>
                   <select
@@ -491,7 +506,18 @@ export default function AdminPage() {
                             key={b.id}
                             className={b.status === 'cancelled' ? 'bg-gray-50 text-gray-400 line-through' : 'hover:bg-gray-50'}
                           >
-                            <td className="p-4 font-semibold">{b.date}</td>
+                            <td className="p-4 font-semibold">
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  value={editForm.date}
+                                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                                  className="w-32 px-2 py-1 border border-emerald-500 rounded text-xs font-semibold text-gray-900 bg-white"
+                                />
+                              ) : (
+                                b.date
+                              )}
+                            </td>
                             <td className="p-4 font-semibold text-gray-900">{b.spaces?.name || '不明なスペース'}</td>
                             <td className="p-4 font-medium">
                               {isEditing ? (
@@ -517,7 +543,27 @@ export default function AdminPage() {
                                 b.email || '-'
                               )}
                             </td>
-                            <td className="p-4">{b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)}</td>
+                            <td className="p-4">
+                              {isEditing ? (
+                                <div className="flex items-center space-x-1">
+                                  <input
+                                    type="time"
+                                    value={editForm.start_time}
+                                    onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })}
+                                    className="w-20 px-1 py-1 border border-emerald-500 rounded text-xs text-gray-900 bg-white"
+                                  />
+                                  <span>〜</span>
+                                  <input
+                                    type="time"
+                                    value={editForm.end_time}
+                                    onChange={(e) => setEditForm({ ...editForm, end_time: e.target.value })}
+                                    className="w-20 px-1 py-1 border border-emerald-500 rounded text-xs text-gray-900 bg-white"
+                                  />
+                                </div>
+                              ) : (
+                                `${b.start_time?.slice(0, 5)} 〜 ${b.end_time?.slice(0, 5)}`
+                              )}
+                            </td>
                             <td className="p-4">
                               {b.status === 'cancelled' ? (
                                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
