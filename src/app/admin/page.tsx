@@ -26,6 +26,14 @@ export default function AdminPage() {
   // 追加：売上管理で選択されている年（例: "2026", "2027" 等）
   const [selectedSalesYear, setSelectedSalesYear] = useState<string>('2026')
 
+  // 追加：インライン編集用の状態管理（編集中の予約IDとフォーム入力値）
+  const [editingBookingId, setEditingBookingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({
+    user_name: '',
+    email: '',
+    total_price: 0,
+  })
+
   useEffect(() => {
     const auth = sessionStorage.getItem('admin_auth')
     if (auth === 'true') {
@@ -147,6 +155,41 @@ export default function AdminPage() {
     }
   }
 
+  // 追加：編集モードの開始
+  const handleStartEdit = (b: any) => {
+    setEditingBookingId(b.id)
+    setEditForm({
+      user_name: b.user_name || '',
+      email: b.email || '',
+      total_price: b.total_price || 0,
+    })
+  }
+
+  // 追加：編集のキャンセル
+  const handleCancelEdit = () => {
+    setEditingBookingId(null)
+  }
+
+  // 追加：編集内容の保存処理
+  const handleSaveEdit = async (id: string) => {
+    const { error } = await supabase
+      .from('bookings')
+      .update({
+        user_name: editForm.user_name,
+        email: editForm.email,
+        total_price: Number(editForm.total_price),
+      })
+      .eq('id', id)
+
+    if (error) {
+      alert('更新に失敗しました: ' + error.message)
+    } else {
+      alert('予約情報を更新しました。')
+      setEditingBookingId(null)
+      fetchBookings()
+    }
+  }
+
   const handleSendReminder = (booking: any) => {
     if (!booking.email) {
       alert('お客様のメールアドレスが登録されていません。')
@@ -224,7 +267,7 @@ export default function AdminPage() {
     )
   ).sort().reverse() as string[]
 
-  // 利用可能な年リスト（"YYYY"）を取得（データから自動抽出、またはデフォルトで2026, 2027等を含める）
+  // 利用可能な年リスト（"YYYY"）を取得
   const availableYears = Array.from(
     new Set(
       bookings
@@ -397,7 +440,7 @@ export default function AdminPage() {
             {/* 月別個別予約リスト ＆ 末尾合計集計 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-sm font-bold text-gray-900">月別個別予約・売上明細</h2>
+                <h2 className="text-sm font-bold text-gray-900">月別個別予約・売上明細（※各行の「編集」ボタンから名前・アドレス・金額の修正が可能です）</h2>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-bold text-gray-600">表示月を選択:</span>
                   <select
@@ -429,42 +472,103 @@ export default function AdminPage() {
                       <th className="p-4 font-bold">時間</th>
                       <th className="p-4 font-bold">ステータス</th>
                       <th className="p-4 font-bold text-right">金額</th>
+                      <th className="p-4 font-bold text-right">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {selectedMonthBookings.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-6 text-center text-gray-500">
+                        <td colSpan={8} className="p-6 text-center text-gray-500">
                           選択された月（{selectedSalesMonth}）の予約データはありません。
                         </td>
                       </tr>
                     ) : (
-                      selectedMonthBookings.map((b) => (
-                        <tr
-                          key={b.id}
-                          className={b.status === 'cancelled' ? 'bg-gray-50 text-gray-400 line-through' : 'hover:bg-gray-50'}
-                        >
-                          <td className="p-4 font-semibold">{b.date}</td>
-                          <td className="p-4 font-semibold text-gray-900">{b.spaces?.name || '不明なスペース'}</td>
-                          <td className="p-4 font-medium">{b.user_name}</td>
-                          <td className="p-4 text-gray-600">{b.email || '-'}</td>
-                          <td className="p-4">{b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)}</td>
-                          <td className="p-4">
-                            {b.status === 'cancelled' ? (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
-                                キャンセル
-                              </span>
-                            ) : (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                有効
-                              </span>
-                            )}
-                          </td>
-                          <td className={`p-4 font-bold text-right ${b.status === 'cancelled' ? 'text-gray-400' : 'text-emerald-600'}`}>
-                            ¥{(b.total_price || 0).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))
+                      selectedMonthBookings.map((b) => {
+                        const isEditing = editingBookingId === b.id
+
+                        return (
+                          <tr
+                            key={b.id}
+                            className={b.status === 'cancelled' ? 'bg-gray-50 text-gray-400 line-through' : 'hover:bg-gray-50'}
+                          >
+                            <td className="p-4 font-semibold">{b.date}</td>
+                            <td className="p-4 font-semibold text-gray-900">{b.spaces?.name || '不明なスペース'}</td>
+                            <td className="p-4 font-medium">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editForm.user_name}
+                                  onChange={(e) => setEditForm({ ...editForm, user_name: e.target.value })}
+                                  className="w-full px-2 py-1 border border-emerald-500 rounded text-xs font-semibold text-gray-900 bg-white"
+                                />
+                              ) : (
+                                b.user_name
+                              )}
+                            </td>
+                            <td className="p-4 text-gray-600">
+                              {isEditing ? (
+                                <input
+                                  type="email"
+                                  value={editForm.email}
+                                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                  className="w-full px-2 py-1 border border-emerald-500 rounded text-xs text-gray-900 bg-white"
+                                />
+                              ) : (
+                                b.email || '-'
+                              )}
+                            </td>
+                            <td className="p-4">{b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)}</td>
+                            <td className="p-4">
+                              {b.status === 'cancelled' ? (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
+                                  キャンセル
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                  有効
+                                </span>
+                              )}
+                            </td>
+                            <td className={`p-4 font-bold text-right ${b.status === 'cancelled' ? 'text-gray-400' : 'text-emerald-600'}`}>
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  value={editForm.total_price}
+                                  onChange={(e) => setEditForm({ ...editForm, total_price: Number(e.target.value) })}
+                                  className="w-24 px-2 py-1 border border-emerald-500 rounded text-xs font-bold text-right text-gray-900 bg-white"
+                                />
+                              ) : (
+                                `¥${(b.total_price || 0).toLocaleString()}`
+                              )}
+                            </td>
+                            <td className="p-4 text-right space-x-1">
+                              {isEditing ? (
+                                <>
+                                  <button
+                                    onClick={() => handleSaveEdit(b.id)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded transition"
+                                  >
+                                    保存
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEdit}
+                                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2.5 py-1 rounded transition"
+                                  >
+                                    取消
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => handleStartEdit(b)}
+                                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1 rounded transition"
+                                >
+                                  編集
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })
                     )}
                   </tbody>
                   {/* テーブル最下部の合計集計行 */}
@@ -481,6 +585,7 @@ export default function AdminPage() {
                             <div className="text-red-500 text-[10px]">失効: ¥{selectedMonthCancelledSales.toLocaleString()}</div>
                           )}
                         </td>
+                        <td></td>
                       </tr>
                     </tfoot>
                   )}
