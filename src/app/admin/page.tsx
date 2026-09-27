@@ -337,7 +337,7 @@ export default function AdminPage() {
                 キャンセル済み
               </button>
             </div>
-5          )}
+          )}
         </div>
 
         {loading ? (
