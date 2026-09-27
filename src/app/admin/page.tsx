@@ -23,6 +23,8 @@ export default function AdminPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   // 追加：売上管理で選択されている月（"YYYY-MM"）
   const [selectedSalesMonth, setSelectedSalesMonth] = useState<string>('')
+  // 追加：売上管理で選択されている年（例: "2026", "2027" 等）
+  const [selectedSalesYear, setSelectedSalesYear] = useState<string>('2026')
 
   useEffect(() => {
     const auth = sessionStorage.getItem('admin_auth')
@@ -83,6 +85,7 @@ export default function AdminPage() {
 
         if (months.length > 0) {
           setSelectedSalesMonth(months[0])
+          setSelectedSalesYear(months[0].slice(0, 4))
         }
       }
     }
@@ -221,6 +224,24 @@ export default function AdminPage() {
     )
   ).sort().reverse() as string[]
 
+  // 利用可能な年リスト（"YYYY"）を取得（データから自動抽出、またはデフォルトで2026, 2027等を含める）
+  const availableYears = Array.from(
+    new Set(
+      bookings
+        .map((b) => (b.date ? b.date.slice(0, 4) : ''))
+        .filter(Boolean)
+    )
+  ).sort().reverse() as string[]
+  
+  if (availableYears.length === 0) {
+    availableYears.push('2026')
+  }
+
+  // 選択された年の予約データ
+  const selectedYearBookings = bookings.filter((b) => b.date && b.date.startsWith(selectedSalesYear))
+  const totalActiveSalesYear = selectedYearBookings.filter(b => b.status !== 'cancelled').reduce((acc, b) => acc + (b.total_price || 0), 0)
+  const totalCancelledSalesYear = selectedYearBookings.filter(b => b.status === 'cancelled').reduce((acc, b) => acc + (b.total_price || 0), 0)
+
   // 選択された月の個別予約リスト
   const selectedMonthBookings = bookings.filter((b) => b.date && b.date.slice(0, 7) === selectedSalesMonth)
 
@@ -254,10 +275,6 @@ export default function AdminPage() {
   })
 
   const sortedCustomers = Object.values(customerSalesMap).sort((a, b) => b.totalSpent - a.totalSpent)
-
-  // 累計計算
-  const totalActiveSalesAll = bookings.filter(b => b.status !== 'cancelled').reduce((acc, b) => acc + (b.total_price || 0), 0)
-  const totalCancelledSalesAll = bookings.filter(b => b.status === 'cancelled').reduce((acc, b) => acc + (b.total_price || 0), 0)
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
@@ -345,15 +362,35 @@ export default function AdminPage() {
         ) : viewMode === 'sales' ? (
           /* 売上管理ビュー */
           <div className="space-y-6">
-            {/* 総合計サマリーカード */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                <div className="text-xs font-bold text-gray-500 mb-1">総売上（有効な予約の累計）</div>
-                <div className="text-2xl font-bold text-emerald-600">¥{totalActiveSalesAll.toLocaleString()}</div>
+            {/* 年選択ボタンおよび総合計サマリーカード */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 space-y-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h2 className="text-sm font-bold text-gray-900">年間売上サマリー</h2>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-bold text-gray-600">対象年を選択:</span>
+                  <div className="flex space-x-1">
+                    {['2026', '2027', '2028', '2029', '2030'].map((y) => (
+                      <button
+                        key={y}
+                        onClick={() => setSelectedSalesYear(y)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${selectedSalesYear === y ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                      >
+                        {y}年
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                <div className="text-xs font-bold text-gray-500 mb-1">キャンセル損失金額（累計）</div>
-                <div className="text-2xl font-bold text-red-500">¥{totalCancelledSalesAll.toLocaleString()}</div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                  <div className="text-xs font-bold text-gray-500 mb-1">{selectedSalesYear}年 総売上（有効な予約）</div>
+                  <div className="text-2xl font-bold text-emerald-600">¥{totalActiveSalesYear.toLocaleString()}</div>
+                </div>
+                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                  <div className="text-xs font-bold text-gray-500 mb-1">{selectedSalesYear}年 キャンセル損失金額</div>
+                  <div className="text-2xl font-bold text-red-500">¥{totalCancelledSalesYear.toLocaleString()}</div>
+                </div>
               </div>
             </div>
 
