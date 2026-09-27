@@ -21,6 +21,8 @@ export default function AdminPage() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'sales'>('list')
   // カレンダー用の選択年月
   const [currentDate, setCurrentDate] = useState(new Date())
+  // 追加：売上管理で選択されている月（"YYYY-MM"）
+  const [selectedSalesMonth, setSelectedSalesMonth] = useState<string>('')
 
   useEffect(() => {
     const auth = sessionStorage.getItem('admin_auth')
@@ -65,8 +67,24 @@ export default function AdminPage() {
     if (error) {
       console.error('予約一覧取得エラー:', error)
     } else {
-      setBookings(data || [])
-      setFilteredBookings(data || [])
+      const fetchedBookings = data || []
+      setBookings(fetchedBookings)
+      setFilteredBookings(fetchedBookings)
+
+      // 初期ロード時に最新の年月を売上管理の選択月に設定
+      if (fetchedBookings.length > 0) {
+        const months = Array.from(
+          new Set(
+            fetchedBookings
+              .map((b: any) => (b.date ? b.date.slice(0, 7) : ''))
+              .filter(Boolean)
+          )
+        ).sort().reverse() as string[]
+
+        if (months.length > 0) {
+          setSelectedSalesMonth(months[0])
+        }
+      }
     }
     setLoading(false)
   }
@@ -194,28 +212,38 @@ export default function AdminPage() {
   const firstDay = getFirstDayOfMonth(year, month)
 
   // 売上データ集計ロジック
-  // 月別集計データの作成
-  const monthlySalesMap: { [key: string]: { activeSales: number; cancelledSales: number; activeCount: number; cancelledCount: number } } = {}
+  // 利用可能な月リスト（"YYYY-MM"）を取得
+  const availableMonths = Array.from(
+    new Set(
+      bookings
+        .map((b) => (b.date ? b.date.slice(0, 7) : ''))
+        .filter(Boolean)
+    )
+  ).sort().reverse() as string[]
+
+  // 選択された月の個別予約リスト
+  const selectedMonthBookings = bookings.filter((b) => b.date && b.date.slice(0, 7) === selectedSalesMonth)
+
+  // 選択された月の集計計算
+  const selectedMonthActiveSales = selectedMonthBookings
+    .filter((b) => b.status !== 'cancelled')
+    .reduce((acc, b) => acc + (b.total_price || 0), 0)
+
+  const selectedMonthCancelledSales = selectedMonthBookings
+    .filter((b) => b.status === 'cancelled')
+    .reduce((acc, b) => acc + (b.total_price || 0), 0)
+
+  const selectedMonthActiveCount = selectedMonthBookings.filter((b) => b.status !== 'cancelled').length
+  const selectedMonthCancelledCount = selectedMonthBookings.filter((b) => b.status === 'cancelled').length
+
   // 利用者別集計データの作成
   const customerSalesMap: { [key: string]: { name: string; email: string; totalSpent: number; count: number } } = {}
 
   bookings.forEach((b) => {
     if (!b.date) return
-    const monthKey = b.date.slice(0, 7) // "YYYY-MM"
     const price = b.total_price || 0
 
-    if (!monthlySalesMap[monthKey]) {
-      monthlySalesMap[monthKey] = { activeSales: 0, cancelledSales: 0, activeCount: 0, cancelledCount: 0 }
-    }
-
-    if (b.status === 'cancelled') {
-      monthlySalesMap[monthKey].cancelledSales += price
-      monthlySalesMap[monthKey].cancelledCount += 1
-    } else {
-      monthlySalesMap[monthKey].activeSales += price
-      monthlySalesMap[monthKey].activeCount += 1
-
-      // 利用者別集計（キャンセル以外）
+    if (b.status !== 'cancelled') {
       const custKey = b.email || b.user_name || '不明'
       if (!customerSalesMap[custKey]) {
         customerSalesMap[custKey] = { name: b.user_name || '不明', email: b.email || '-', totalSpent: 0, count: 0 }
@@ -225,7 +253,6 @@ export default function AdminPage() {
     }
   })
 
-  const sortedMonths = Object.keys(monthlySalesMap).sort().reverse()
   const sortedCustomers = Object.values(customerSalesMap).sort((a, b) => b.totalSpent - a.totalSpent)
 
   // 累計計算
@@ -310,7 +337,7 @@ export default function AdminPage() {
                 キャンセル済み
               </button>
             </div>
-          )}
+5          )}
         </div>
 
         {loading ? (
@@ -330,40 +357,96 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 月毎の売上・キャンセル金額集計テーブル */}
+            {/* 月別個別予約リスト ＆ 末尾合計集計 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
-              <h2 className="text-sm font-bold text-gray-900 mb-4">月別売上・キャンセル集計</h2>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 className="text-sm font-bold text-gray-900">月別個別予約・売上明細</h2>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-bold text-gray-600">表示月を選択:</span>
+                  <select
+                    value={selectedSalesMonth}
+                    onChange={(e) => setSelectedSalesMonth(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-gray-300 text-xs font-bold text-gray-900 focus:outline-none focus:border-emerald-500 bg-white"
+                  >
+                    {availableMonths.length === 0 ? (
+                      <option value="">データなし</option>
+                    ) : (
+                      availableMonths.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
-                      <th className="p-4 font-bold">年月</th>
-                      <th className="p-4 font-bold">利用完了（有効）件数</th>
-                      <th className="p-4 font-bold text-emerald-600">利用完了 売上金額</th>
-                      <th className="p-4 font-bold">キャンセル件数</th>
-                      <th className="p-4 font-bold text-red-500">キャンセル金額</th>
+                      <th className="p-4 font-bold">予約日</th>
+                      <th className="p-4 font-bold">スペース</th>
+                      <th className="p-4 font-bold">お名前</th>
+                      <th className="p-4 font-bold">メールアドレス</th>
+                      <th className="p-4 font-bold">時間</th>
+                      <th className="p-4 font-bold">ステータス</th>
+                      <th className="p-4 font-bold text-right">金額</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {sortedMonths.length === 0 ? (
+                    {selectedMonthBookings.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-6 text-center text-gray-500">データがありません。</td>
+                        <td colSpan={7} className="p-6 text-center text-gray-500">
+                          選択された月（{selectedSalesMonth}）の予約データはありません。
+                        </td>
                       </tr>
                     ) : (
-                      sortedMonths.map((mKey) => {
-                        const data = monthlySalesMap[mKey]
-                        return (
-                          <tr key={mKey} className="hover:bg-gray-50">
-                            <td className="p-4 font-bold text-gray-900">{mKey}</td>
-                            <td className="p-4 font-medium">{data.activeCount} 件</td>
-                            <td className="p-4 font-bold text-emerald-600">¥{data.activeSales.toLocaleString()}</td>
-                            <td className="p-4 font-medium text-gray-500">{data.cancelledCount} 件</td>
-                            <td className="p-4 font-bold text-red-500">¥{data.cancelledSales.toLocaleString()}</td>
-                          </tr>
-                        )
-                      })
+                      selectedMonthBookings.map((b) => (
+                        <tr
+                          key={b.id}
+                          className={b.status === 'cancelled' ? 'bg-gray-50 text-gray-400 line-through' : 'hover:bg-gray-50'}
+                        >
+                          <td className="p-4 font-semibold">{b.date}</td>
+                          <td className="p-4 font-semibold text-gray-900">{b.spaces?.name || '不明なスペース'}</td>
+                          <td className="p-4 font-medium">{b.user_name}</td>
+                          <td className="p-4 text-gray-600">{b.email || '-'}</td>
+                          <td className="p-4">{b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)}</td>
+                          <td className="p-4">
+                            {b.status === 'cancelled' ? (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
+                                キャンセル
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                有効
+                              </span>
+                            )}
+                          </td>
+                          <td className={`p-4 font-bold text-right ${b.status === 'cancelled' ? 'text-gray-400' : 'text-emerald-600'}`}>
+                            ¥{(b.total_price || 0).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
+                  {/* テーブル最下部の合計集計行 */}
+                  {selectedMonthBookings.length > 0 && (
+                    <tfoot>
+                      <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold text-gray-900">
+                        <td colSpan={5} className="p-4 text-right">【 {selectedSalesMonth} 合計 】</td>
+                        <td className="p-4 text-xs font-semibold text-gray-600">
+                          有効: {selectedMonthActiveCount}件 / キャンセル: {selectedMonthCancelledCount}件
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="text-emerald-600">売上: ¥{selectedMonthActiveSales.toLocaleString()}</div>
+                          {selectedMonthCancelledSales > 0 && (
+                            <div className="text-red-500 text-[10px]">失効: ¥{selectedMonthCancelledSales.toLocaleString()}</div>
+                          )}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             </div>
