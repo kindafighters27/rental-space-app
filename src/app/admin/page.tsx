@@ -17,9 +17,9 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('active')
   
-  // 追加：ビュー切り替え（'list' または 'calendar'）
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
-  // 追加：カレンダー用の選択年月
+  // ビュー切り替え（'list' または 'calendar' または 'sales'）
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'sales'>('list')
+  // カレンダー用の選択年月
   const [currentDate, setCurrentDate] = useState(new Date())
 
   useEffect(() => {
@@ -126,14 +126,12 @@ export default function AdminPage() {
     }
   }
 
-  // 追加：リマインドメール送信ハンドラー（入退出マニュアル・利用規約・ルールを添付/案内）
   const handleSendReminder = (booking: any) => {
     if (!booking.email) {
       alert('お客様のメールアドレスが登録されていません。')
       return
     }
     if (confirm(`${booking.user_name} 様 (${booking.email}) 宛てに、入退出マニュアル・利用規約・ルールを記載したリマインドメールを送信しますか？`)) {
-      // 実際のメール送信API処理をここに接続できます
       alert('リマインドメールを送信しました！（入退出マニュアル・利用規約・ルール添付/案内済み）')
     }
   }
@@ -189,11 +187,50 @@ export default function AdminPage() {
     )
   }
 
-  // カレンダー描画用データ計算
+  // カレンダー用データ計算
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const daysInMonth = getDaysInMonth(year, month)
   const firstDay = getFirstDayOfMonth(year, month)
+
+  // 売上データ集計ロジック
+  // 月別集計データの作成
+  const monthlySalesMap: { [key: string]: { activeSales: number; cancelledSales: number; activeCount: number; cancelledCount: number } } = {}
+  // 利用者別集計データの作成
+  const customerSalesMap: { [key: string]: { name: string; email: string; totalSpent: number; count: number } } = {}
+
+  bookings.forEach((b) => {
+    if (!b.date) return
+    const monthKey = b.date.slice(0, 7) // "YYYY-MM"
+    const price = b.total_price || 0
+
+    if (!monthlySalesMap[monthKey]) {
+      monthlySalesMap[monthKey] = { activeSales: 0, cancelledSales: 0, activeCount: 0, cancelledCount: 0 }
+    }
+
+    if (b.status === 'cancelled') {
+      monthlySalesMap[monthKey].cancelledSales += price
+      monthlySalesMap[monthKey].cancelledCount += 1
+    } else {
+      monthlySalesMap[monthKey].activeSales += price
+      monthlySalesMap[monthKey].activeCount += 1
+
+      // 利用者別集計（キャンセル以外）
+      const custKey = b.email || b.user_name || '不明'
+      if (!customerSalesMap[custKey]) {
+        customerSalesMap[custKey] = { name: b.user_name || '不明', email: b.email || '-', totalSpent: 0, count: 0 }
+      }
+      customerSalesMap[custKey].totalSpent += price
+      customerSalesMap[custKey].count += 1
+    }
+  })
+
+  const sortedMonths = Object.keys(monthlySalesMap).sort().reverse()
+  const sortedCustomers = Object.values(customerSalesMap).sort((a, b) => b.totalSpent - a.totalSpent)
+
+  // 累計計算
+  const totalActiveSalesAll = bookings.filter(b => b.status !== 'cancelled').reduce((acc, b) => acc + (b.total_price || 0), 0)
+  const totalCancelledSalesAll = bookings.filter(b => b.status === 'cancelled').reduce((acc, b) => acc + (b.total_price || 0), 0)
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-800 pb-12">
@@ -231,6 +268,12 @@ export default function AdminPage() {
             >
               カレンダー一括確認
             </button>
+            <button
+              onClick={() => setViewMode('sales')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${viewMode === 'sales' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              売上管理
+            </button>
           </div>
 
           {viewMode === 'list' && (
@@ -245,31 +288,119 @@ export default function AdminPage() {
             </div>
           )}
 
-          <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
-            <span className="text-xs font-bold text-gray-600">ステータス:</span>
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'all' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            >
-              すべて ({bookings.length})
-            </button>
-            <button
-              onClick={() => setStatusFilter('active')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            >
-              有効な予約
-            </button>
-            <button
-              onClick={() => setStatusFilter('cancelled')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'cancelled' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            >
-              キャンセル済み
-            </button>
-          </div>
+          {viewMode !== 'sales' && (
+            <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
+              <span className="text-xs font-bold text-gray-600">ステータス:</span>
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'all' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                すべて ({bookings.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('active')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                有効な予約
+              </button>
+              <button
+                onClick={() => setStatusFilter('cancelled')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${statusFilter === 'cancelled' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                キャンセル済み
+              </button>
+            </div>
+          )}
         </div>
 
         {loading ? (
           <div className="text-center py-20 text-gray-500">読み込み中...</div>
+        ) : viewMode === 'sales' ? (
+          /* 売上管理ビュー */
+          <div className="space-y-6">
+            {/* 総合計サマリーカード */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                <div className="text-xs font-bold text-gray-500 mb-1">総売上（有効な予約の累計）</div>
+                <div className="text-2xl font-bold text-emerald-600">¥{totalActiveSalesAll.toLocaleString()}</div>
+              </div>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                <div className="text-xs font-bold text-gray-500 mb-1">キャンセル損失金額（累計）</div>
+                <div className="text-2xl font-bold text-red-500">¥{totalCancelledSalesAll.toLocaleString()}</div>
+              </div>
+            </div>
+
+            {/* 月毎の売上・キャンセル金額集計テーブル */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
+              <h2 className="text-sm font-bold text-gray-900 mb-4">月別売上・キャンセル集計</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
+                      <th className="p-4 font-bold">年月</th>
+                      <th className="p-4 font-bold">利用完了（有効）件数</th>
+                      <th className="p-4 font-bold text-emerald-600">利用完了 売上金額</th>
+                      <th className="p-4 font-bold">キャンセル件数</th>
+                      <th className="p-4 font-bold text-red-500">キャンセル金額</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {sortedMonths.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-6 text-center text-gray-500">データがありません。</td>
+                      </tr>
+                    ) : (
+                      sortedMonths.map((mKey) => {
+                        const data = monthlySalesMap[mKey]
+                        return (
+                          <tr key={mKey} className="hover:bg-gray-50">
+                            <td className="p-4 font-bold text-gray-900">{mKey}</td>
+                            <td className="p-4 font-medium">{data.activeCount} 件</td>
+                            <td className="p-4 font-bold text-emerald-600">¥{data.activeSales.toLocaleString()}</td>
+                            <td className="p-4 font-medium text-gray-500">{data.cancelledCount} 件</td>
+                            <td className="p-4 font-bold text-red-500">¥{data.cancelledSales.toLocaleString()}</td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 利用者別集計テーブル */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
+              <h2 className="text-sm font-bold text-gray-900 mb-4">利用者別 利用実績・売上集計</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
+                      <th className="p-4 font-bold">お名前</th>
+                      <th className="p-4 font-bold">メールアドレス</th>
+                      <th className="p-4 font-bold">利用回数</th>
+                      <th className="p-4 font-bold text-emerald-600">総利用金額</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {sortedCustomers.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-6 text-center text-gray-500">データがありません。</td>
+                      </tr>
+                    ) : (
+                      sortedCustomers.map((cust, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="p-4 font-bold text-gray-900">{cust.name}</td>
+                          <td className="p-4 text-gray-600">{cust.email}</td>
+                          <td className="p-4 font-medium">{cust.count} 回</td>
+                          <td className="p-4 font-bold text-emerald-600">¥{cust.totalSpent.toLocaleString()}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         ) : viewMode === 'calendar' ? (
           /* カレンダー一括確認ビュー */
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
@@ -322,7 +453,6 @@ export default function AdminPage() {
                 const formattedDay = String(dayNum).padStart(2, '0')
                 const dateString = `${year}-${formattedMonth}-${formattedDay}`
 
-                // 該当日の予約を抽出（フィルター適用）
                 const dayBookings = filteredBookings.filter((b) => b.date === dateString)
 
                 return (
@@ -406,7 +536,6 @@ export default function AdminPage() {
                       <td className="p-4 text-right space-x-2">
                         {b.status !== 'cancelled' && (
                           <>
-                            {/* 追加：マニュアル・規約案内付きリマインドメール送信ボタン */}
                             <button
                               onClick={() => handleSendReminder(b)}
                               className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-3 py-1.5 rounded-lg transition"
