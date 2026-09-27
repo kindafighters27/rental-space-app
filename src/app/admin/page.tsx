@@ -26,7 +26,7 @@ export default function AdminPage() {
   // 追加：売上管理で選択されている年（例: "2026", "2027" 等）
   const [selectedSalesYear, setSelectedSalesYear] = useState<string>('2026')
 
-  // 追加：インライン編集用の状態管理（編集中の予約IDとフォーム入力値：日付、時間項目を追加）
+  // 追加：インライン編集用の状態管理（ステータス項目 `status` を追加）
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
     user_name: '',
@@ -35,6 +35,7 @@ export default function AdminPage() {
     date: '',
     start_time: '',
     end_time: '',
+    status: 'active',
   })
 
   useEffect(() => {
@@ -158,7 +159,7 @@ export default function AdminPage() {
     }
   }
 
-  // 編集モードの開始（日付・時間の初期値もセット）
+  // 編集モードの開始（ステータスも含めて初期値をセット）
   const handleStartEdit = (b: any) => {
     setEditingBookingId(b.id)
     setEditForm({
@@ -168,6 +169,7 @@ export default function AdminPage() {
       date: b.date || '',
       start_time: b.start_time ? b.start_time.slice(0, 5) : '',
       end_time: b.end_time ? b.end_time.slice(0, 5) : '',
+      status: b.status || 'active',
     })
   }
 
@@ -176,13 +178,14 @@ export default function AdminPage() {
     setEditingBookingId(null)
   }
 
-  // 編集内容の保存処理（日付・時間も含めて更新）
+  // 編集内容の保存処理（ステータスを含めて更新）
   const handleSaveEdit = async (id: string) => {
     const updatePayload: any = {
       user_name: editForm.user_name,
       email: editForm.email,
       total_price: Number(editForm.total_price),
       date: editForm.date,
+      status: editForm.status,
     }
     if (editForm.start_time) {
       updatePayload.start_time = editForm.start_time.length === 5 ? `${editForm.start_time}:00` : editForm.start_time
@@ -273,7 +276,6 @@ export default function AdminPage() {
   const firstDay = getFirstDayOfMonth(year, month)
 
   // 売上データ集計ロジック
-  // 利用可能な月リスト（"YYYY-MM"）を取得
   const availableMonths = Array.from(
     new Set(
       bookings
@@ -282,7 +284,6 @@ export default function AdminPage() {
     )
   ).sort().reverse() as string[]
 
-  // 利用可能な年リスト（"YYYY"）を取得
   const availableYears = Array.from(
     new Set(
       bookings
@@ -295,15 +296,12 @@ export default function AdminPage() {
     availableYears.push('2026')
   }
 
-  // 選択された年の予約データ
   const selectedYearBookings = bookings.filter((b) => b.date && b.date.startsWith(selectedSalesYear))
   const totalActiveSalesYear = selectedYearBookings.filter(b => b.status !== 'cancelled').reduce((acc, b) => acc + (b.total_price || 0), 0)
   const totalCancelledSalesYear = selectedYearBookings.filter(b => b.status === 'cancelled').reduce((acc, b) => acc + (b.total_price || 0), 0)
 
-  // 選択された月の個別予約リスト
   const selectedMonthBookings = bookings.filter((b) => b.date && b.date.slice(0, 7) === selectedSalesMonth)
 
-  // 選択された月の集計計算
   const selectedMonthActiveSales = selectedMonthBookings
     .filter((b) => b.status !== 'cancelled')
     .reduce((acc, b) => acc + (b.total_price || 0), 0)
@@ -315,7 +313,6 @@ export default function AdminPage() {
   const selectedMonthActiveCount = selectedMonthBookings.filter((b) => b.status !== 'cancelled').length
   const selectedMonthCancelledCount = selectedMonthBookings.filter((b) => b.status === 'cancelled').length
 
-  // 利用者別集計データの作成
   const customerSalesMap: { [key: string]: { name: string; email: string; totalSpent: number; count: number } } = {}
 
   bookings.forEach((b) => {
@@ -355,7 +352,6 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 mt-8">
-        {/* ビュー切り替えおよび検索・フィルターバー */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center space-x-2 w-full md:w-auto">
             <button
@@ -418,9 +414,7 @@ export default function AdminPage() {
         {loading ? (
           <div className="text-center py-20 text-gray-500">読み込み中...</div>
         ) : viewMode === 'sales' ? (
-          /* 売上管理ビュー */
           <div className="space-y-6">
-            {/* 年選択ボタンおよび総合計サマリーカード */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 space-y-4">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h2 className="text-sm font-bold text-gray-900">年間売上サマリー</h2>
@@ -452,10 +446,9 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 月別個別予約リスト ＆ 末尾合計集計 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-sm font-bold text-gray-900">月別個別予約・売上明細（※各行の「編集」ボタンから過去・未来の予約日・時間・お名前・アドレス・金額の修正が可能です）</h2>
+                <h2 className="text-sm font-bold text-gray-900">月別個別予約・売上明細（※各行の「編集」ボタンからステータスや予約日の変更が可能です）</h2>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-bold text-gray-600">表示月を選択:</span>
                   <select
@@ -565,7 +558,16 @@ export default function AdminPage() {
                               )}
                             </td>
                             <td className="p-4">
-                              {b.status === 'cancelled' ? (
+                              {isEditing ? (
+                                <select
+                                  value={editForm.status}
+                                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                  className="px-2 py-1 border border-emerald-500 rounded text-xs font-bold text-gray-900 bg-white"
+                                >
+                                  <option value="active">有効</option>
+                                  <option value="cancelled">キャンセル</option>
+                                </select>
+                              ) : b.status === 'cancelled' ? (
                                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
                                   キャンセル
                                 </span>
@@ -617,7 +619,6 @@ export default function AdminPage() {
                       })
                     )}
                   </tbody>
-                  {/* テーブル最下部の合計集計行 */}
                   {selectedMonthBookings.length > 0 && (
                     <tfoot>
                       <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold text-gray-900">
@@ -639,7 +640,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 利用者別集計テーブル */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
               <h2 className="text-sm font-bold text-gray-900 mb-4">利用者別 利用実績・売上集計</h2>
               <div className="overflow-x-auto">
@@ -673,7 +673,6 @@ export default function AdminPage() {
             </div>
           </div>
         ) : viewMode === 'calendar' ? (
-          /* カレンダー一括確認ビュー */
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-sm font-bold text-gray-900">
@@ -712,12 +711,10 @@ export default function AdminPage() {
             </div>
 
             <div className="grid grid-cols-7 gap-2">
-              {/* 空白セル（月初めまで） */}
               {Array.from({ length: firstDay }).map((_, index) => (
                 <div key={`empty-${index}`} className="h-28 bg-gray-50 rounded-xl border border-gray-100"></div>
               ))}
 
-              {/* 日付セル */}
               {Array.from({ length: daysInMonth }).map((_, index) => {
                 const dayNum = index + 1
                 const formattedMonth = String(month + 1).padStart(2, '0')
@@ -757,7 +754,6 @@ export default function AdminPage() {
             条件に一致する予約データはありません。
           </div>
         ) : (
-          /* リスト表示ビュー */
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
