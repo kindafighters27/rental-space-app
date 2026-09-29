@@ -93,10 +93,18 @@ export default function Home() {
     return `${hour}:00`
   })
 
-  // 終了時間用（深夜30時＝翌朝6:00まで選択可能にするため 00:00 〜 30:00）
-  const endTimeOptions = Array.from({ length: 31 }, (_, i) => {
+  // 終了時間用（33時まで選択可能、24時以降は分かりやすい補足付き）
+  const endTimeOptions = Array.from({ length: 34 }, (_, i) => {
     const hour = String(i).padStart(2, '0')
-    return `${hour}:00`
+    let label = `${hour}:00`
+    if (i > 24) {
+      const nextDayHour = i - 24
+      const paddedNextHour = String(nextDayHour).padStart(2, '0')
+      label = `${hour}:00（翌日午前${paddedNextHour}時）`
+    } else if (i === 24) {
+      label = `24:00（翌日0時）`
+    }
+    return { value: `${hour}:00`, label }
   })
 
   const currentSpaceBookings = bookings.filter(
@@ -501,11 +509,11 @@ export default function Home() {
                     required
                   >
                     <option value="">終了時間を選択</option>
-                    {endTimeOptions.map((time) => {
-                      const disabled = isTimeSlotDisabled(time)
+                    {endTimeOptions.map((item) => {
+                      const disabled = isTimeSlotDisabled(item.value)
                       return (
-                        <option key={time} value={time} disabled={disabled}>
-                          {time} {disabled ? '（予約不可・バッファー含む）' : ''}
+                        <option key={item.value} value={item.value} disabled={disabled}>
+                          {item.label} {disabled ? '（予約不可・バッファー含む）' : ''}
                         </option>
                       )
                     })}
@@ -618,10 +626,8 @@ export default function Home() {
             {userBookings.length > 0 && (
               <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
                 {userBookings.map((b) => {
-                  // 予約日の Date オブジェクトを作成し、時刻をリセット
                   const bookingDate = new Date(b.date)
                   bookingDate.setHours(0, 0, 0, 0)
-                  // 予約日が今日以降（未来、または今日）かどうか判定
                   const isFutureOrToday = bookingDate >= today
 
                   return (
