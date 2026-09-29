@@ -617,20 +617,34 @@ export default function Home() {
 
             {userBookings.length > 0 && (
               <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
-                {userBookings.map((b) => (
-                  <div key={b.id} className="border border-gray-200 rounded-xl p-3 flex justify-between items-center bg-gray-50 text-xs">
-                    <div>
-                      <div className="font-bold text-gray-900">{b.date} ({b.start_time?.slice(0, 5)}〜{b.end_time?.slice(0, 5)})</div>
-                      <div className="text-gray-600">¥{(b.total_price || 0).toLocaleString()}</div>
+                {userBookings.map((b) => {
+                  // 予約日の Date オブジェクトを作成し、時刻をリセット
+                  const bookingDate = new Date(b.date)
+                  bookingDate.setHours(0, 0, 0, 0)
+                  // 予約日が今日以降（未来、または今日）かどうか判定
+                  const isFutureOrToday = bookingDate >= today
+
+                  return (
+                    <div key={b.id} className="border border-gray-200 rounded-xl p-3 flex justify-between items-center bg-gray-50 text-xs">
+                      <div>
+                        <div className="font-bold text-gray-900">{b.date} ({b.start_time?.slice(0, 5)}〜{b.end_time?.slice(0, 5)})</div>
+                        <div className="text-gray-600">¥{(b.total_price || 0).toLocaleString()}</div>
+                      </div>
+                      {isFutureOrToday ? (
+                        <button
+                          onClick={() => handleUserCancelBooking(b)}
+                          className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
+                        >
+                          キャンセルする
+                        </button>
+                      ) : (
+                        <span className="bg-gray-200 text-gray-500 font-bold px-3 py-1.5 rounded-lg text-[11px] cursor-not-allowed">
+                          キャンセル不可（終了分）
+                        </span>
+                      )}
                     </div>
-                    <button
-                      onClick={() => handleUserCancelBooking(b)}
-                      className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
-                    >
-                      キャンセルする
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
