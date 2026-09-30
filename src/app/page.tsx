@@ -129,7 +129,7 @@ export default function Home() {
     return false
   }
 
-  // クーポン適用判定（豊臣秀吉、kindafighters27@gmail.com、0509は管理者パスワード等と混同しないようテスト用の0505）
+  // クーポン適用判定
   const isCouponApplied =
     userName.trim() === '豊臣秀吉' &&
     email.trim() === 'kindafighters27@gmail.com' &&
@@ -338,7 +338,7 @@ export default function Home() {
                 { name: '個室（壁・扉あり）', icon: '🚪' },
                 { name: 'トイレ', icon: '🚻' },
                 { name: '電源', icon: '🔌' },
-                { name: 'エアコン（冷暖房）', icon: '❄️️' },
+                { name: 'エアコン（冷暖房）', icon: '❄️' },
                 { name: 'キッチン設備', icon: '🍳' },
                 { name: '飲食可', icon: '🍴' },
                 { name: '飲酒可', icon: '🍷' },
@@ -563,7 +563,7 @@ export default function Home() {
                     type="text"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="例: 0505"
+                    placeholder=""
                     className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
