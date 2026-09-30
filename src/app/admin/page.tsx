@@ -26,8 +26,16 @@ export default function AdminPage() {
   // 売上管理で選択されている年（例: "2026", "2027" 等）
   const [selectedSalesYear, setSelectedSalesYear] = useState<string>('2026')
 
-  // 月ごとの経費（賃料・人件費）の状態管理（キー: "YYYY-MM"、値: 金額）
-  const [monthlyExpenses, setMonthlyExpenses] = useState<{ [key: string]: { rent: number; labor: number } }>({})
+  // 月ごとの経費の状態管理（キー: "YYYY-MM"、値: 各経費金額）
+  const [monthlyExpenses, setMonthlyExpenses] = useState<{ 
+    [key: string]: { 
+      rent: number; 
+      labor: number; 
+      beverage: number; 
+      wifi: number; 
+      equipment: number 
+    } 
+  }>({})
 
   // インライン編集用の状態管理
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null)
@@ -112,17 +120,23 @@ export default function AdminPage() {
   const fetchExpenses = async () => {
     const { data, error } = await supabase.from('expenses').select('*')
     if (!error && data) {
-      const expMap: { [key: string]: { rent: number; labor: number } } = {}
+      const expMap: { [key: string]: { rent: number; labor: number; beverage: number; wifi: number; equipment: number } } = {}
       data.forEach((item: any) => {
-        expMap[item.month] = { rent: item.rent || 0, labor: item.labor || 0 }
+        expMap[item.month] = { 
+          rent: item.rent || 0, 
+          labor: item.labor || 0,
+          beverage: item.beverage || 0,
+          wifi: item.wifi || 0,
+          equipment: item.equipment || 0
+        }
       })
       setMonthlyExpenses(expMap)
     }
   }
 
   // 経費データの保存
-  const handleExpenseChange = async (month: string, field: 'rent' | 'labor', value: number) => {
-    const current = monthlyExpenses[month] || { rent: 0, labor: 0 }
+  const handleExpenseChange = async (month: string, field: 'rent' | 'labor' | 'beverage' | 'wifi' | 'equipment', value: number) => {
+    const current = monthlyExpenses[month] || { rent: 0, labor: 0, beverage: 0, wifi: 0, equipment: 0 }
     const updated = { ...current, [field]: value }
 
     setMonthlyExpenses((prev) => ({
@@ -134,6 +148,9 @@ export default function AdminPage() {
       month: month,
       rent: updated.rent,
       labor: updated.labor,
+      beverage: updated.beverage,
+      wifi: updated.wifi,
+      equipment: updated.equipment,
     }, { onConflict: 'month' })
   }
 
@@ -342,7 +359,12 @@ export default function AdminPage() {
 
   const currentRent = monthlyExpenses[selectedSalesMonth]?.rent || 0
   const currentLabor = monthlyExpenses[selectedSalesMonth]?.labor || 0
-  const currentGrossProfit = selectedMonthActiveSales - (currentRent + currentLabor)
+  const currentBeverage = monthlyExpenses[selectedSalesMonth]?.beverage || 0
+  const currentWifi = monthlyExpenses[selectedSalesMonth]?.wifi || 0
+  const currentEquipment = monthlyExpenses[selectedSalesMonth]?.equipment || 0
+
+  const totalExpenses = currentRent + currentLabor + currentBeverage + currentWifi + currentEquipment
+  const currentGrossProfit = selectedMonthActiveSales - totalExpenses
 
   const customerSalesMap: { [key: string]: { name: string; email: string; totalSpent: number; count: number } } = {}
 
@@ -477,7 +499,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 月別個別予約・売上＆賃料・人件費・粗利管理カード */}
+            {/* 月別個別予約・売上＆経費・粗利管理カード */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6 space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h2 className="text-sm font-bold text-gray-900">月別売上・経費・粗利管理</h2>
@@ -501,14 +523,14 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 賃料・人件費の入力および粗利表示エリア */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200 items-center">
+              {/* 各種経費の入力および粗利表示エリア */}
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200 items-center">
                 <div>
                   <div className="text-xs font-bold text-gray-500 mb-1">{selectedSalesMonth} 売上</div>
                   <div className="text-lg font-bold text-emerald-600">¥{selectedMonthActiveSales.toLocaleString()}</div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">賃料（経費）</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">賃料（既存）</label>
                   <input
                     type="number"
                     value={currentRent}
@@ -518,7 +540,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">人件費（経費）</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">人件費（既存）</label>
                   <input
                     type="number"
                     value={currentLabor}
@@ -528,10 +550,44 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-gray-500 mb-1">月間 粗利（利益）</div>
-                  <div className={`text-xl font-black ${currentGrossProfit >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">飲料購入費（新規）</label>
+                  <input
+                    type="number"
+                    value={currentBeverage}
+                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'beverage', Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Wi-Fi購入費（新規）</label>
+                  <input
+                    type="number"
+                    value={currentWifi}
+                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'wifi', Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">設備購入費（新規）</label>
+                  <input
+                    type="number"
+                    value={currentEquipment}
+                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'equipment', Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 flex justify-between items-center">
+                <div className="text-xs font-bold text-emerald-900">経費合計: ¥{totalExpenses.toLocaleString()}</div>
+                <div>
+                  <span className="text-xs font-bold text-gray-700 mr-2">月間 粗利（利益）:</span>
+                  <span className={`text-xl font-black ${currentGrossProfit >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
                     ¥{currentGrossProfit.toLocaleString()}
-                  </div>
+                  </span>
                 </div>
               </div>
 
@@ -545,8 +601,6 @@ export default function AdminPage() {
                       <th className="p-4 font-bold">メールアドレス</th>
                       <th className="p-4 font-bold">時間</th>
                       <th className="p-4 font-bold">ステータス</th>
-                      <th className="p-4 font-bold">賃料</th>
-                      <th className="p-4 font-bold">人件費</th>
                       <th className="p-4 font-bold text-right">金額</th>
                       <th className="p-4 font-bold text-right">操作</th>
                     </tr>
@@ -554,7 +608,7 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-gray-200">
                     {selectedMonthBookings.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="p-6 text-center text-gray-500">
+                        <td colSpan={8} className="p-6 text-center text-gray-500">
                           選択された月（{selectedSalesMonth}）の予約データはありません。
                         </td>
                       </tr>
@@ -645,8 +699,6 @@ export default function AdminPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="p-4 text-gray-600 font-medium">¥{currentRent.toLocaleString()}</td>
-                            <td className="p-4 text-gray-600 font-medium">¥{currentLabor.toLocaleString()}</td>
                             <td className={`p-4 font-bold text-right ${b.status === 'cancelled' ? 'text-gray-400' : 'text-emerald-600'}`}>
                               {isEditing ? (
                                 <input
@@ -696,8 +748,6 @@ export default function AdminPage() {
                         <td className="p-4 text-xs font-semibold text-gray-600">
                           有効: {selectedMonthActiveCount}件 / キャンセル: {selectedMonthCancelledCount}件
                         </td>
-                        <td className="p-4 text-gray-600">¥{currentRent.toLocaleString()}</td>
-                        <td className="p-4 text-gray-600">¥{currentLabor.toLocaleString()}</td>
                         <td className="p-4 text-right">
                           <div className="text-emerald-600">売上: ¥{selectedMonthActiveSales.toLocaleString()}</div>
                           {selectedMonthCancelledSales > 0 && (
@@ -720,22 +770,24 @@ export default function AdminPage() {
                     <tr className="bg-gray-100 border-b border-gray-200 text-gray-600">
                       <th className="p-4 font-bold">お名前</th>
                       <th className="p-4 font-bold">メールアドレス</th>
-                      <th className="p-4 font-bold">利用回数</th>
-                      <th className="p-4 font-bold text-emerald-600">総利用金額</th>
+                      <th className="p-4 font-bold text-center">利用回数</th>
+                      <th className="p-4 font-bold text-right">総利用金額</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {sortedCustomers.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="p-6 text-center text-gray-500">データがありません。</td>
+                        <td colSpan={4} className="p-6 text-center text-gray-500">
+                          顧客データはありません。
+                        </td>
                       </tr>
                     ) : (
-                      sortedCustomers.map((cust, idx) => (
+                      sortedCustomers.map((c, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          <td className="p-4 font-bold text-gray-900">{cust.name}</td>
-                          <td className="p-4 text-gray-600">{cust.email}</td>
-                          <td className="p-4 font-medium">{cust.count} 回</td>
-                          <td className="p-4 font-bold text-emerald-600">¥{cust.totalSpent.toLocaleString()}</td>
+                          <td className="p-4 font-semibold text-gray-900">{c.name}</td>
+                          <td className="p-4 text-gray-600">{c.email}</td>
+                          <td className="p-4 text-center font-bold text-gray-700">{c.count}回</td>
+                          <td className="p-4 text-right font-bold text-emerald-600">¥{c.totalSpent.toLocaleString()}</td>
                         </tr>
                       ))
                     )}
@@ -745,27 +797,21 @@ export default function AdminPage() {
             </div>
           </div>
         ) : viewMode === 'calendar' ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-sm font-bold text-gray-900">
-                {year}年 {month + 1}月 予約状況カレンダー
+              <h2 className="text-sm font-bold text-gray-950">
+                {year}年 {month + 1}月 カレンダー一括確認
               </h2>
               <div className="flex space-x-2">
                 <button
                   onClick={handlePrevMonth}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold transition"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs transition"
                 >
                   前の月
                 </button>
                 <button
-                  onClick={() => setCurrentDate(new Date())}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold transition"
-                >
-                  今月
-                </button>
-                <button
                   onClick={handleNextMonth}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold transition"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs transition"
                 >
                   次の月
                 </button>
@@ -784,35 +830,39 @@ export default function AdminPage() {
 
             <div className="grid grid-cols-7 gap-2">
               {Array.from({ length: firstDay }).map((_, index) => (
-                <div key={`empty-${index}`} className="h-28 bg-gray-50 rounded-xl border border-gray-100"></div>
+                <div key={`empty-${index}`} className="h-28 bg-gray-50 rounded-xl border border-gray-100 opacity-40"></div>
               ))}
 
               {Array.from({ length: daysInMonth }).map((_, index) => {
-                const dayNum = index + 1
-                const formattedMonth = String(month + 1).padStart(2, '0')
-                const formattedDay = String(dayNum).padStart(2, '0')
-                const dateString = `${year}-${formattedMonth}-${formattedDay}`
+                const day = index + 1
+                const monthStr = String(month + 1).padStart(2, '0')
+                const dayStr = String(day).padStart(2, '0')
+                const dateString = `${year}-${monthStr}-${dayStr}`
 
                 const dayBookings = filteredBookings.filter((b) => b.date === dateString)
 
                 return (
-                  <div
-                    key={`day-${dayNum}`}
-                    className="h-28 bg-white rounded-xl border border-gray-200 p-1.5 overflow-y-auto flex flex-col justify-start"
-                  >
-                    <div className="text-xs font-bold text-gray-700 mb-1 px-1">{dayNum}</div>
-                    <div className="space-y-1">
+                  <div key={day} className="h-28 bg-white rounded-xl border border-gray-200 p-2 flex flex-col justify-between overflow-y-auto shadow-sm">
+                    <div className="text-xs font-bold text-gray-900 border-b border-gray-100 pb-1 flex justify-between">
+                      <span>{day}</span>
+                      {dayBookings.length > 0 && (
+                        <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+                          {dayBookings.length}件
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1 mt-1 flex-1 overflow-y-auto">
                       {dayBookings.map((b) => (
                         <div
                           key={b.id}
-                          className={`text-[10px] p-1 rounded font-medium truncate ${
+                          className={`text-[10px] p-1 rounded font-semibold truncate ${
                             b.status === 'cancelled'
                               ? 'bg-gray-100 text-gray-400 line-through'
-                              : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                              : 'bg-emerald-50 text-emerald-900 border border-emerald-100'
                           }`}
-                          title={`${b.user_name} (${b.start_time?.slice(0, 5)}-${b.end_time?.slice(0, 5)}) - ${b.spaces?.name}`}
+                          title={`${b.spaces?.name} / ${b.user_name} (${b.start_time?.slice(0, 5)}〜${b.end_time?.slice(0, 5)})`}
                         >
-                          <span className="font-bold">{b.start_time?.slice(0, 5)}</span> {b.user_name}
+                          {b.start_time?.slice(0, 5)} {b.user_name}
                         </div>
                       ))}
                     </div>
@@ -820,10 +870,6 @@ export default function AdminPage() {
                 )
               })}
             </div>
-          </div>
-        ) : filteredBookings.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center text-gray-500 shadow-sm border border-gray-200">
-            条件に一致する予約データはありません。
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -836,62 +882,175 @@ export default function AdminPage() {
                     <th className="p-4 font-bold">お名前</th>
                     <th className="p-4 font-bold">メールアドレス</th>
                     <th className="p-4 font-bold">時間</th>
-                    <th className="p-4 font-bold">金額</th>
-                    <th className="p-4 font-bold">ステータス / 確定チェック</th>
+                    <th className="p-4 font-bold">ステータス</th>
+                    <th className="p-4 font-bold">予約確定</th>
+                    <th className="p-4 font-bold text-right">金額</th>
                     <th className="p-4 font-bold text-right">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredBookings.map((b) => (
-                    <tr key={b.id} className={b.status === 'cancelled' ? 'bg-gray-50 text-gray-400 line-through' : 'hover:bg-gray-50'}>
-                      <td className="p-4 font-semibold">{b.date}</td>
-                      <td className="p-4 font-semibold text-gray-900">{b.spaces?.name || '不明なスペース'}</td>
-                      <td className="p-4 font-medium">{b.user_name}</td>
-                      <td className="p-4 text-gray-600">{b.email || '-'}</td>
-                      <td className="p-4">{b.start_time?.slice(0, 5)} 〜 {b.end_time?.slice(0, 5)}</td>
-                      <td className="p-4 font-bold text-emerald-600">¥{(b.total_price || 0).toLocaleString()}</td>
-                      <td className="p-4">
-                        {b.status === 'cancelled' ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
-                            キャンセル済み
-                          </span>
-                        ) : (
-                          <div className="flex items-center space-x-3">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-                              仮予約
-                            </span>
-                            <label className="flex items-center space-x-1.5 cursor-pointer bg-gray-50 hover:bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 transition">
-                              <input
-                                type="checkbox"
-                                checked={!!b.is_confirmed}
-                                onChange={() => handleToggleConfirm(b.id, !!b.is_confirmed)}
-                                className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-                              />
-                              <span className="font-bold text-gray-700 text-[11px]">予約確定</span>
-                            </label>
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-4 text-right space-x-2">
-                        {b.status !== 'cancelled' && (
-                          <>
-                            <button
-                              onClick={() => handleSendReminder(b)}
-                              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-3 py-1.5 rounded-lg transition"
-                            >
-                              リマインド送信
-                            </button>
-                            <button
-                              onClick={() => handleCancel(b.id)}
-                              className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
-                            >
-                              キャンセル
-                            </button>
-                          </>
-                        )}
+                  {filteredBookings.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="p-8 text-center text-gray-500">
+                        予約データがありません。
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredBookings.map((b) => {
+                      const isEditing = editingBookingId === b.id
+
+                      return (
+                        <tr
+                          key={b.id}
+                          className={b.status === 'cancelled' ? 'bg-gray-50 text-gray-400 line-through' : 'hover:bg-gray-50'}
+                        >
+                          <td className="p-4 font-semibold">
+                            {isEditing ? (
+                              <input
+                                type="date"
+                                value={editForm.date}
+                                onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                                className="w-32 px-2 py-1 border border-emerald-500 rounded text-xs font-semibold text-gray-900 bg-white"
+                              />
+                            ) : (
+                              b.date
+                            )}
+                          </td>
+                          <td className="p-4 font-semibold text-gray-900">{b.spaces?.name || '不明なスペース'}</td>
+                          <td className="p-4 font-medium">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={editForm.user_name}
+                                onChange={(e) => setEditForm({ ...editForm, user_name: e.target.value })}
+                                className="w-full px-2 py-1 border border-emerald-500 rounded text-xs font-semibold text-gray-900 bg-white"
+                              />
+                            ) : (
+                              b.user_name
+                            )}
+                          </td>
+                          <td className="p-4 text-gray-600">
+                            {isEditing ? (
+                              <input
+                                type="email"
+                                value={editForm.email}
+                                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                className="w-full px-2 py-1 border border-emerald-500 rounded text-xs text-gray-900 bg-white"
+                              />
+                            ) : (
+                              b.email || '-'
+                            )}
+                          </td>
+                          <td className="p-4">
+                            {isEditing ? (
+                              <div className="flex items-center space-x-1">
+                                <input
+                                  type="time"
+                                  value={editForm.start_time}
+                                  onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })}
+                                  className="w-20 px-1 py-1 border border-emerald-500 rounded text-xs text-gray-900 bg-white"
+                                />
+                                <span>〜</span>
+                                <input
+                                  type="time"
+                                  value={editForm.end_time}
+                                  onChange={(e) => setEditForm({ ...editForm, end_time: e.target.value })}
+                                  className="w-20 px-1 py-1 border border-emerald-500 rounded text-xs text-gray-900 bg-white"
+                                />
+                              </div>
+                            ) : (
+                              `${b.start_time?.slice(0, 5)} 〜 ${b.end_time?.slice(0, 5)}`
+                            )}
+                          </td>
+                          <td className="p-4">
+                            {isEditing ? (
+                              <select
+                                value={editForm.status}
+                                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                className="px-2 py-1 border border-emerald-500 rounded text-xs font-bold text-gray-900 bg-white"
+                              >
+                                <option value="active">有効</option>
+                                <option value="cancelled">キャンセル</option>
+                              </select>
+                            ) : b.status === 'cancelled' ? (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
+                                キャンセル
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                有効
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            <button
+                              onClick={() => handleToggleConfirm(b.id, b.is_confirmed)}
+                              className={`px-3 py-1 rounded-xl text-[10px] font-bold transition shadow-sm ${
+                                b.is_confirmed
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                              }`}
+                            >
+                              {b.is_confirmed ? '確定済み' : '未確定'}
+                            </button>
+                          </td>
+                          <td className={`p-4 font-bold text-right ${b.status === 'cancelled' ? 'text-gray-400' : 'text-emerald-600'}`}>
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                value={editForm.total_price}
+                                onChange={(e) => setEditForm({ ...editForm, total_price: Number(e.target.value) })}
+                                className="w-24 px-2 py-1 border border-emerald-500 rounded text-xs font-bold text-right text-gray-900 bg-white"
+                              />
+                            ) : (
+                              `¥${(b.total_price || 0).toLocaleString()}`
+                            )}
+                          </td>
+                          <td className="p-4 text-right space-x-1">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  onClick={() => handleSaveEdit(b.id)}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded transition"
+                                >
+                                  保存
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2.5 py-1 rounded transition"
+                                >
+                                  取消
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => handleStartEdit(b)}
+                                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1 rounded transition"
+                                >
+                                  編集
+                                </button>
+                                <button
+                                  onClick={() => handleSendReminder(b)}
+                                  className="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2.5 py-1 rounded transition"
+                                >
+                                  メール送信
+                                </button>
+                                {b.status !== 'cancelled' && (
+                                  <button
+                                    onClick={() => handleCancel(b.id)}
+                                    className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2.5 py-1 rounded transition"
+                                  >
+                                    キャンセル
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
