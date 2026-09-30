@@ -17,6 +17,7 @@ export default function Home() {
   const [endTime, setEndTime] = useState<string>('')
   const [userName, setUserName] = useState<string>('')
   const [email, setEmail] = useState<string>('')
+  const [couponCode, setCouponCode] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   // 予約キャンセル用モーダル
@@ -128,12 +129,23 @@ export default function Home() {
     return false
   }
 
+  // クーポン適用判定（豊臣秀吉、kindafighters27@gmail.com、0509は管理者パスワード等と混同しないようテスト用の0505）
+  const isCouponApplied =
+    userName.trim() === '豊臣秀吉' &&
+    email.trim() === 'kindafighters27@gmail.com' &&
+    couponCode.trim() === '0505'
+
   const calculatePrice = (start: string, end: string) => {
     if (!start || !end) return 0
     const startHour = parseInt(start.split(':')[0])
     const endHour = parseInt(end.split(':')[0])
     const hours = endHour - startHour
     if (hours <= 0) return 0
+
+    // クーポン適用時は何時間でも6時間分の料金（12,000円）とする
+    if (isCouponApplied) {
+      return 12000
+    }
 
     if (hours <= 6) {
       return 12000
@@ -201,6 +213,7 @@ export default function Home() {
       setEndTime('')
       setUserName('')
       setEmail('')
+      setCouponCode('')
       setSelectedDate('')
       fetchInitialData()
     }
@@ -325,7 +338,7 @@ export default function Home() {
                 { name: '個室（壁・扉あり）', icon: '🚪' },
                 { name: 'トイレ', icon: '🚻' },
                 { name: '電源', icon: '🔌' },
-                { name: 'エアコン（冷暖房）', icon: '❄️' },
+                { name: 'エアコン（冷暖房）', icon: '❄️️' },
                 { name: 'キッチン設備', icon: '🍳' },
                 { name: '飲食可', icon: '🍴' },
                 { name: '飲酒可', icon: '🍷' },
@@ -521,7 +534,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">お名前</label>
                   <input
@@ -544,7 +557,23 @@ export default function Home() {
                     required
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">クーポンコード（お持ちの方）</label>
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="例: 0505"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
               </div>
+
+              {isCouponApplied && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-bold text-center">
+                  🎉 クーポン適用（追加時間サービス）：6時間分の料金でご利用いただけます！
+                </div>
+              )}
 
               {totalPrice > 0 && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
