@@ -26,7 +26,7 @@ export default function AdminPage() {
   // 売上管理で選択されている年（例: "2026", "2027" 等）
   const [selectedSalesYear, setSelectedSalesYear] = useState<string>('2026')
 
-  // 追加：月ごとの経費（賃料・人件費）の状態管理（キー: "YYYY-MM"、値: 金額）
+  // 月ごとの経費（賃料・人件費）の状態管理（キー: "YYYY-MM"、値: 金額）
   const [monthlyExpenses, setMonthlyExpenses] = useState<{ [key: string]: { rent: number; labor: number } }>({})
 
   // インライン編集用の状態管理
@@ -108,7 +108,7 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  // 経費データの取得（Supabaseの expenses テーブル等から取得、なければローカル保持など）
+  // 経費データの取得
   const fetchExpenses = async () => {
     const { data, error } = await supabase.from('expenses').select('*')
     if (!error && data) {
@@ -130,7 +130,6 @@ export default function AdminPage() {
       [month]: updated,
     }))
 
-    // Supabaseへ保存またはアップサート
     await supabase.from('expenses').upsert({
       month: month,
       rent: updated.rent,
@@ -341,7 +340,6 @@ export default function AdminPage() {
   const selectedMonthActiveCount = selectedMonthBookings.filter((b) => b.status !== 'cancelled').length
   const selectedMonthCancelledCount = selectedMonthBookings.filter((b) => b.status === 'cancelled').length
 
-  // 現在選択されている月の賃料・人件費・粗利計算
   const currentRent = monthlyExpenses[selectedSalesMonth]?.rent || 0
   const currentLabor = monthlyExpenses[selectedSalesMonth]?.labor || 0
   const currentGrossProfit = selectedMonthActiveSales - (currentRent + currentLabor)
@@ -547,6 +545,8 @@ export default function AdminPage() {
                       <th className="p-4 font-bold">メールアドレス</th>
                       <th className="p-4 font-bold">時間</th>
                       <th className="p-4 font-bold">ステータス</th>
+                      <th className="p-4 font-bold">賃料</th>
+                      <th className="p-4 font-bold">人件費</th>
                       <th className="p-4 font-bold text-right">金額</th>
                       <th className="p-4 font-bold text-right">操作</th>
                     </tr>
@@ -554,7 +554,7 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-gray-200">
                     {selectedMonthBookings.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="p-6 text-center text-gray-500">
+                        <td colSpan={10} className="p-6 text-center text-gray-500">
                           選択された月（{selectedSalesMonth}）の予約データはありません。
                         </td>
                       </tr>
@@ -645,6 +645,8 @@ export default function AdminPage() {
                                 </span>
                               )}
                             </td>
+                            <td className="p-4 text-gray-600 font-medium">¥{currentRent.toLocaleString()}</td>
+                            <td className="p-4 text-gray-600 font-medium">¥{currentLabor.toLocaleString()}</td>
                             <td className={`p-4 font-bold text-right ${b.status === 'cancelled' ? 'text-gray-400' : 'text-emerald-600'}`}>
                               {isEditing ? (
                                 <input
@@ -694,6 +696,8 @@ export default function AdminPage() {
                         <td className="p-4 text-xs font-semibold text-gray-600">
                           有効: {selectedMonthActiveCount}件 / キャンセル: {selectedMonthCancelledCount}件
                         </td>
+                        <td className="p-4 text-gray-600">¥{currentRent.toLocaleString()}</td>
+                        <td className="p-4 text-gray-600">¥{currentLabor.toLocaleString()}</td>
                         <td className="p-4 text-right">
                           <div className="text-emerald-600">売上: ¥{selectedMonthActiveSales.toLocaleString()}</div>
                           {selectedMonthCancelledSales > 0 && (
