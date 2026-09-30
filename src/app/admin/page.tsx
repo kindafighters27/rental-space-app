@@ -26,14 +26,15 @@ export default function AdminPage() {
   // 売上管理で選択されている年（例: "2026", "2027" 等）
   const [selectedSalesYear, setSelectedSalesYear] = useState<string>('2026')
 
+  // 月ごとの経費（賃料・人件費）を保持するステート { [monthKey]: { rent: number, labor: number } }
+  const [monthlyExpenses, setMonthlyExpenses] = useState<{ [key: string]: { rent: number; labor: number } }>({})
+
   // インライン編集用の状態管理
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
     user_name: '',
     email: '',
     total_price: 0,
-    rent: 0,
-    labor: 0,
     date: '',
     start_time: '',
     end_time: '',
@@ -55,6 +56,31 @@ export default function AdminPage() {
       filterBookings()
     }
   }, [searchTerm, statusFilter, bookings])
+
+  // ローカルストレージから月別経費を読み込む
+  useEffect(() => {
+    const saved = localStorage.getItem('monthly_expenses')
+    if (saved) {
+      try {
+        setMonthlyExpenses(JSON.parse(saved))
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }, [])
+
+  const handleExpenseChange = (month: string, field: 'rent' | 'labor', value: number) => {
+    const updated = {
+      ...monthlyExpenses,
+      [month]: {
+        rent: monthlyExpenses[month]?.rent || 0,
+        labor: monthlyExpenses[month]?.labor || 0,
+        [field]: value,
+      },
+    }
+    setMonthlyExpenses(updated)
+    localStorage.setItem('monthly_expenses', JSON.stringify(updated))
+  }
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -166,8 +192,6 @@ export default function AdminPage() {
       user_name: b.user_name || '',
       email: b.email || '',
       total_price: b.total_price || 0,
-      rent: b.rent || 0,
-      labor: b.labor || 0,
       date: b.date || '',
       start_time: b.start_time ? b.start_time.slice(0, 5) : '',
       end_time: b.end_time ? b.end_time.slice(0, 5) : '',
@@ -184,8 +208,6 @@ export default function AdminPage() {
       user_name: editForm.user_name,
       email: editForm.email,
       total_price: Number(editForm.total_price),
-      rent: Number(editForm.rent),
-      labor: Number(editForm.labor),
       date: editForm.date,
       status: editForm.status,
     }
@@ -312,16 +334,9 @@ export default function AdminPage() {
   const selectedMonthActiveCount = selectedMonthBookings.filter((b) => b.status !== 'cancelled').length
   const selectedMonthCancelledCount = selectedMonthBookings.filter((b) => b.status === 'cancelled').length
 
-  // 各予約ごとの賃料・人件費を合計して月間トータルを算出
-  const totalMonthRent = selectedMonthBookings
-    .filter((b) => b.status !== 'cancelled')
-    .reduce((acc, b) => acc + (b.rent || 0), 0)
-
-  const totalMonthLabor = selectedMonthBookings
-    .filter((b) => b.status !== 'cancelled')
-    .reduce((acc, b) => acc + (b.labor || 0), 0)
-
-  const currentGrossProfit = selectedMonthActiveSales - (totalMonthRent + totalMonthLabor)
+  const currentMonthRent = monthlyExpenses[selectedSalesMonth]?.rent || 0
+  const currentMonthLabor = monthlyExpenses[selectedSalesMonth]?.labor || 0
+  const currentGrossProfit = selectedMonthActiveSales - (currentMonthRent + currentMonthLabor)
 
   const customerSalesMap: { [key: string]: { name: string; email: string; totalSpent: number; count: number } } = {}
 
@@ -456,12 +471,12 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 月別個別予約・売上＆個別賃料・人件費・粗利管理カード */}
+            {/* 月別一括売上・経費管理カード */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6 space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h2 className="text-sm font-bold text-gray-900">月別売上・経費・粗利管理</h2>
+                <h2 className="text-sm font-bold text-gray-900">月別売上・経費・粗利一括管理</h2>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs font-bold text-gray-600">表示月を選択:</span>
+                  <span className="text-xs font-bold text-gray-600">対象月を選択:</span>
                   <select
                     value={selectedSalesMonth}
                     onChange={(e) => setSelectedSalesMonth(e.target.value)}
@@ -480,19 +495,30 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 賃料・人件費の集計および粗利表示エリア */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200 items-center">
                 <div>
                   <div className="text-xs font-bold text-gray-500 mb-1">{selectedSalesMonth} 売上</div>
                   <div className="text-lg font-bold text-emerald-600">¥{selectedMonthActiveSales.toLocaleString()}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-gray-500 mb-1">賃料合計（経費）</div>
-                  <div className="text-lg font-bold text-gray-700">¥{totalMonthRent.toLocaleString()}</div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">賃料（経費）を入力</label>
+                  <input
+                    type="number"
+                    value={currentMonthRent}
+                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'rent', Number(e.target.value))}
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                    placeholder="0"
+                  />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-gray-500 mb-1">人件費合計（経費）</div>
-                  <div className="text-lg font-bold text-gray-700">¥{totalMonthLabor.toLocaleString()}</div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">人件費（経費）を入力</label>
+                  <input
+                    type="number"
+                    value={currentMonthLabor}
+                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'labor', Number(e.target.value))}
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                    placeholder="0"
+                  />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-gray-500 mb-1">月間 粗利（利益）</div>
@@ -512,8 +538,6 @@ export default function AdminPage() {
                       <th className="p-4 font-bold">メールアドレス</th>
                       <th className="p-4 font-bold">時間</th>
                       <th className="p-4 font-bold">ステータス</th>
-                      <th className="p-4 font-bold">賃料</th>
-                      <th className="p-4 font-bold">人件費</th>
                       <th className="p-4 font-bold text-right">金額</th>
                       <th className="p-4 font-bold text-right">操作</th>
                     </tr>
@@ -521,7 +545,7 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-gray-200">
                     {selectedMonthBookings.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="p-6 text-center text-gray-500">
+                        <td colSpan={8} className="p-6 text-center text-gray-500">
                           選択された月（{selectedSalesMonth}）の予約データはありません。
                         </td>
                       </tr>
@@ -612,30 +636,6 @@ export default function AdminPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="p-4 text-gray-600 font-medium">
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  value={editForm.rent}
-                                  onChange={(e) => setEditForm({ ...editForm, rent: Number(e.target.value) })}
-                                  className="w-20 px-2 py-1 border border-emerald-500 rounded text-xs font-bold text-right text-gray-900 bg-white"
-                                />
-                              ) : (
-                                `¥${(b.rent || 0).toLocaleString()}`
-                              )}
-                            </td>
-                            <td className="p-4 text-gray-600 font-medium">
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  value={editForm.labor}
-                                  onChange={(e) => setEditForm({ ...editForm, labor: Number(e.target.value) })}
-                                  className="w-20 px-2 py-1 border border-emerald-500 rounded text-xs font-bold text-right text-gray-900 bg-white"
-                                />
-                              ) : (
-                                `¥${(b.labor || 0).toLocaleString()}`
-                              )}
-                            </td>
                             <td className={`p-4 font-bold text-right ${b.status === 'cancelled' ? 'text-gray-400' : 'text-emerald-600'}`}>
                               {isEditing ? (
                                 <input
@@ -685,8 +685,6 @@ export default function AdminPage() {
                         <td className="p-4 text-xs font-semibold text-gray-600">
                           有効: {selectedMonthActiveCount}件 / キャンセル: {selectedMonthCancelledCount}件
                         </td>
-                        <td className="p-4 text-gray-600">¥{totalMonthRent.toLocaleString()}</td>
-                        <td className="p-4 text-gray-600">¥{totalMonthLabor.toLocaleString()}</td>
                         <td className="p-4 text-right">
                           <div className="text-emerald-600">売上: ¥{selectedMonthActiveSales.toLocaleString()}</div>
                           {selectedMonthCancelledSales > 0 && (
