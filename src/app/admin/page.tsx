@@ -21,12 +21,15 @@ export default function AdminPage() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'sales'>('list')
   // カレンダー用の選択年月
   const [currentDate, setCurrentDate] = useState(new Date())
-  // 追加：売上管理で選択されている月（"YYYY-MM"）
+  // 売上管理で選択されている月（"YYYY-MM"）
   const [selectedSalesMonth, setSelectedSalesMonth] = useState<string>('')
-  // 追加：売上管理で選択されている年（例: "2026", "2027" 等）
+  // 売上管理で選択されている年（例: "2026", "2027" 等）
   const [selectedSalesYear, setSelectedSalesYear] = useState<string>('2026')
 
-  // 追加：インライン編集用の状態管理（ステータス項目 `status` を追加）
+  // 追加：月ごとの経費（賃料・人件費）の状態管理（キー: "YYYY-MM"、値: 金額）
+  const [monthlyExpenses, setMonthlyExpenses] = useState<{ [key: string]: { rent: number; labor: number } }>({})
+
+  // インライン編集用の状態管理
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
     user_name: '',
@@ -43,6 +46,7 @@ export default function AdminPage() {
     if (auth === 'true') {
       setIsAuthenticated(true)
       fetchBookings()
+      fetchExpenses()
     } else {
       setLoading(false)
     }
@@ -60,6 +64,7 @@ export default function AdminPage() {
       setIsAuthenticated(true)
       sessionStorage.setItem('admin_auth', 'true')
       fetchBookings()
+      fetchExpenses()
     } else {
       alert('パスワードが間違っています。')
     }
@@ -85,7 +90,6 @@ export default function AdminPage() {
       setBookings(fetchedBookings)
       setFilteredBookings(fetchedBookings)
 
-      // 初期ロード時に最新の年月を売上管理の選択月に設定
       if (fetchedBookings.length > 0) {
         const months = Array.from(
           new Set(
@@ -102,6 +106,36 @@ export default function AdminPage() {
       }
     }
     setLoading(false)
+  }
+
+  // 経費データの取得（Supabaseの expenses テーブル等から取得、なければローカル保持など）
+  const fetchExpenses = async () => {
+    const { data, error } = await supabase.from('expenses').select('*')
+    if (!error && data) {
+      const expMap: { [key: string]: { rent: number; labor: number } } = {}
+      data.forEach((item: any) => {
+        expMap[item.month] = { rent: item.rent || 0, labor: item.labor || 0 }
+      })
+      setMonthlyExpenses(expMap)
+    }
+  }
+
+  // 経費データの保存
+  const handleExpenseChange = async (month: string, field: 'rent' | 'labor', value: number) => {
+    const current = monthlyExpenses[month] || { rent: 0, labor: 0 }
+    const updated = { ...current, [field]: value }
+
+    setMonthlyExpenses((prev) => ({
+      ...prev,
+      [month]: updated,
+    }))
+
+    // Supabaseへ保存またはアップサート
+    await supabase.from('expenses').upsert({
+      month: month,
+      rent: updated.rent,
+      labor: updated.labor,
+    }, { onConflict: 'month' })
   }
 
   const filterBookings = () => {
@@ -159,7 +193,6 @@ export default function AdminPage() {
     }
   }
 
-  // 編集モードの開始（ステータスも含めて初期値をセット）
   const handleStartEdit = (b: any) => {
     setEditingBookingId(b.id)
     setEditForm({
@@ -173,12 +206,10 @@ export default function AdminPage() {
     })
   }
 
-  // 編集のキャンセル
   const handleCancelEdit = () => {
     setEditingBookingId(null)
   }
 
-  // 編集内容の保存処理（ステータスを含めて更新）
   const handleSaveEdit = async (id: string) => {
     const updatePayload: any = {
       user_name: editForm.user_name,
@@ -218,7 +249,6 @@ export default function AdminPage() {
     }
   }
 
-  // カレンダー用ヘルパー関数
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate()
   }
@@ -269,13 +299,11 @@ export default function AdminPage() {
     )
   }
 
-  // カレンダー用データ計算
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const daysInMonth = getDaysInMonth(year, month)
   const firstDay = getFirstDayOfMonth(year, month)
 
-  // 売上データ集計ロジック
   const availableMonths = Array.from(
     new Set(
       bookings
@@ -312,6 +340,11 @@ export default function AdminPage() {
 
   const selectedMonthActiveCount = selectedMonthBookings.filter((b) => b.status !== 'cancelled').length
   const selectedMonthCancelledCount = selectedMonthBookings.filter((b) => b.status === 'cancelled').length
+
+  // 現在選択されている月の賃料・人件費・粗利計算
+  const currentRent = monthlyExpenses[selectedSalesMonth]?.rent || 0
+  const currentLabor = monthlyExpenses[selectedSalesMonth]?.labor || 0
+  const currentGrossProfit = selectedMonthActiveSales - (currentRent + currentLabor)
 
   const customerSalesMap: { [key: string]: { name: string; email: string; totalSpent: number; count: number } } = {}
 
@@ -446,9 +479,10 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-sm font-bold text-gray-900">月別個別予約・売上明細（※各行の「編集」ボタンからステータスや予約日の変更が可能です）</h2>
+            {/* 月別個別予約・売上＆賃料・人件費・粗利管理カード */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-6 space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h2 className="text-sm font-bold text-gray-900">月別売上・経費・粗利管理</h2>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-bold text-gray-600">表示月を選択:</span>
                   <select
@@ -466,6 +500,40 @@ export default function AdminPage() {
                       ))
                     )}
                   </select>
+                </div>
+              </div>
+
+              {/* 賃料・人件費の入力および粗利表示エリア */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-gray-50 rounded-xl border border-gray-200 items-center">
+                <div>
+                  <div className="text-xs font-bold text-gray-500 mb-1">{selectedSalesMonth} 売上</div>
+                  <div className="text-lg font-bold text-emerald-600">¥{selectedMonthActiveSales.toLocaleString()}</div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">賃料（経費）</label>
+                  <input
+                    type="number"
+                    value={currentRent}
+                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'rent', Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">人件費（経費）</label>
+                  <input
+                    type="number"
+                    value={currentLabor}
+                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'labor', Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-500 mb-1">月間 粗利（利益）</div>
+                  <div className={`text-xl font-black ${currentGrossProfit >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                    ¥{currentGrossProfit.toLocaleString()}
+                  </div>
                 </div>
               </div>
 
