@@ -531,53 +531,68 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">賃料（既存）</label>
-                  <input
-                    type="number"
-                    value={currentRent}
-                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'rent', Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
-                    placeholder="0"
-                  />
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
+                    <input
+                      type="number"
+                      value={currentRent}
+                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'rent', Number(e.target.value))}
+                      className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">人件費（既存）</label>
-                  <input
-                    type="number"
-                    value={currentLabor}
-                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'labor', Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
-                    placeholder="0"
-                  />
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
+                    <input
+                      type="number"
+                      value={currentLabor}
+                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'labor', Number(e.target.value))}
+                      className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">飲料購入費（新規）</label>
-                  <input
-                    type="number"
-                    value={currentBeverage}
-                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'beverage', Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
-                    placeholder="0"
-                  />
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
+                    <input
+                      type="number"
+                      value={currentBeverage}
+                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'beverage', Number(e.target.value))}
+                      className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Wi-Fi購入費（新規）</label>
-                  <input
-                    type="number"
-                    value={currentWifi}
-                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'wifi', Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
-                    placeholder="0"
-                  />
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
+                    <input
+                      type="number"
+                      value={currentWifi}
+                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'wifi', Number(e.target.value))}
+                      className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">設備購入費（新規）</label>
-                  <input
-                    type="number"
-                    value={currentEquipment}
-                    onChange={(e) => handleExpenseChange(selectedSalesMonth, 'equipment', Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
-                    placeholder="0"
-                  />
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
+                    <input
+                      type="number"
+                      value={currentEquipment}
+                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'equipment', Number(e.target.value))}
+                      className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
               </div>
 
