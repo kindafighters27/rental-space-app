@@ -116,7 +116,7 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  // 経費データの取得
+  // 経費データの取得（Supabaseのexpensesテーブルから取得）
   const fetchExpenses = async () => {
     const { data, error } = await supabase.from('expenses').select('*')
     if (!error && data) {
@@ -134,7 +134,7 @@ export default function AdminPage() {
     }
   }
 
-  // 経費データの保存
+  // 経費データの保存（Supabaseのexpensesテーブルへupsert）
   const handleExpenseChange = async (month: string, field: 'rent' | 'labor' | 'beverage' | 'wifi' | 'equipment', value: number) => {
     const current = monthlyExpenses[month] || { rent: 0, labor: 0, beverage: 0, wifi: 0, equipment: 0 }
     const updated = { ...current, [field]: value }
