@@ -534,9 +534,13 @@ export default function AdminPage() {
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
-                      type="number"
-                      value={currentRent}
-                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'rent', Number(e.target.value))}
+                      type="text"
+                      inputMode="numeric"
+                      value={currentRent === 0 ? '' : currentRent.toLocaleString()}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '')
+                        handleExpenseChange(selectedSalesMonth, 'rent', raw === '' ? 0 : Number(raw))
+                      }}
                       className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
                       placeholder="0"
                     />
@@ -547,9 +551,13 @@ export default function AdminPage() {
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
-                      type="number"
-                      value={currentLabor}
-                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'labor', Number(e.target.value))}
+                      type="text"
+                      inputMode="numeric"
+                      value={currentLabor === 0 ? '' : currentLabor.toLocaleString()}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '')
+                        handleExpenseChange(selectedSalesMonth, 'labor', raw === '' ? 0 : Number(raw))
+                      }}
                       className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
                       placeholder="0"
                     />
@@ -560,9 +568,13 @@ export default function AdminPage() {
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
-                      type="number"
-                      value={currentBeverage}
-                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'beverage', Number(e.target.value))}
+                      type="text"
+                      inputMode="numeric"
+                      value={currentBeverage === 0 ? '' : currentBeverage.toLocaleString()}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '')
+                        handleExpenseChange(selectedSalesMonth, 'beverage', raw === '' ? 0 : Number(raw))
+                      }}
                       className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
                       placeholder="0"
                     />
@@ -573,9 +585,13 @@ export default function AdminPage() {
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
-                      type="number"
-                      value={currentWifi}
-                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'wifi', Number(e.target.value))}
+                      type="text"
+                      inputMode="numeric"
+                      value={currentWifi === 0 ? '' : currentWifi.toLocaleString()}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '')
+                        handleExpenseChange(selectedSalesMonth, 'wifi', raw === '' ? 0 : Number(raw))
+                      }}
                       className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
                       placeholder="0"
                     />
@@ -586,9 +602,13 @@ export default function AdminPage() {
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
-                      type="number"
-                      value={currentEquipment}
-                      onChange={(e) => handleExpenseChange(selectedSalesMonth, 'equipment', Number(e.target.value))}
+                      type="text"
+                      inputMode="numeric"
+                      value={currentEquipment === 0 ? '' : currentEquipment.toLocaleString()}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '')
+                        handleExpenseChange(selectedSalesMonth, 'equipment', raw === '' ? 0 : Number(raw))
+                      }}
                       className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 bg-white focus:outline-none focus:border-emerald-500"
                       placeholder="0"
                     />
