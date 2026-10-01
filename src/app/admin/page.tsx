@@ -530,7 +530,7 @@ export default function AdminPage() {
                   <div className="text-lg font-bold text-emerald-600">¥{selectedMonthActiveSales.toLocaleString()}</div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">賃料（既存）</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">賃料</label>
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
@@ -547,7 +547,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">人件費（既存）</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">人件費</label>
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
@@ -564,7 +564,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">飲料購入費（新規）</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">飲料購入費</label>
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
@@ -598,7 +598,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">設備購入費（新規）</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">設備購入費</label>
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-gray-500">¥</span>
                     <input
