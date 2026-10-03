@@ -1,740 +1,219 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import Link from 'next/link'
+import React, { useState } from 'react';
+import Link from 'next/link';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export default function HomePage() {
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
 
-export default function Home() {
-  const [spaces, setSpaces] = useState<any[]>([])
-  const [selectedSpace, setSelectedSpace] = useState<any>(null)
-  const [bookings, setBookings] = useState<any[]>([])
-  const [selectedDate, setSelectedDate] = useState<string>('')
-  const [startTime, setStartTime] = useState<string>('')
-  const [endTime, setEndTime] = useState<string>('')
-  const [userName, setUserName] = useState<string>('')
-  const [email, setEmail] = useState<string>('')
-  const [couponCode, setCouponCode] = useState<string>('')
-  const [loading, setLoading] = useState(true)
+  const getWeekDates = (offset: number) => {
+    const dates = [];
+    const today = new Date();
+    today.setDate(today.getDate() + offset * 7);
 
-  // 予約キャンセル用モーダル
-  const [cancelModalOpen, setCancelModalOpen] = useState(false)
-  const [cancelEmail, setCancelEmail] = useState('')
-  const [userBookings, setUserBookings] = useState<any[]>([])
-
-  // パスワード入力用モーダル（管理者ログイン用）
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
-  const [inputPassword, setInputPassword] = useState('')
-
-  // 各種PDF閲覧用モーダル
-  const [pdfModalOpen, setPdfModalOpen] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState('')
-  const [pdfTitle, setPdfTitle] = useState('')
-
-  // カレンダーの表示オフセット（週単位の移動用：0〜2週間先まで＝最大1ヶ月分）
-  const [weekOffset, setWeekOffset] = useState(0)
-
-  // 今日を基準とした日付のベース
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  // 基準日からオフセットに応じた14日間（2週間分）を生成
-  const startDate = new Date(today)
-  startDate.setDate(today.getDate() + weekOffset * 7)
-
-  const twoWeeksDates = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(startDate)
-    d.setDate(startDate.getDate() + i)
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  })
-
-  // 曜日を取得するヘルパー関数
-  const getDayOfWeek = (dateStr: string) => {
-    const days = ['日', '月', '火', '水', '木', '金', '土']
-    const d = new Date(dateStr)
-    return days[d.getDay()]
-  }
-
-  useEffect(() => {
-    fetchInitialData()
-  }, [])
-
-  const fetchInitialData = async () => {
-    setLoading(true)
-    const { data: spacesData } = await supabase.from('spaces').select('*')
-    if (spacesData && spacesData.length > 0) {
-      const updatedSpaces = spacesData.map((s, index) => {
-        if (index === 0 && (!s.image_url || s.image_url === '')) {
-          return { ...s, image_url: '/space2.JPG' }
-        }
-        return s
-      })
-      setSpaces(updatedSpaces)
-      setSelectedSpace(updatedSpaces[0])
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      const month = d.getMonth() + 1;
+      const day = d.getDate();
+      const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+      dates.push({
+        dateStr: `${month}-${day} (${dayOfWeek})`,
+        status: '空きあり',
+      });
     }
+    return dates;
+  };
 
-    const { data: bookingsData } = await supabase
-      .from('bookings')
-      .select('*')
-      .neq('status', 'cancelled')
-
-    setBookings(bookingsData || [])
-    setLoading(false)
-  }
-
-  // 開始時間用（00:00 〜 24:00）
-  const startTimeOptions = Array.from({ length: 25 }, (_, i) => {
-    const hour = String(i).padStart(2, '0')
-    return `${hour}:00`
-  })
-
-  // 終了時間用（33時まで選択可能、24時以降は分かりやすい補足付き）
-  const endTimeOptions = Array.from({ length: 34 }, (_, i) => {
-    const hour = String(i).padStart(2, '0')
-    let label = `${hour}:00`
-    if (i > 24) {
-      const nextDayHour = i - 24
-      const paddedNextHour = String(nextDayHour).padStart(2, '0')
-      label = `${hour}:00（翌日午前${paddedNextHour}時）`
-    } else if (i === 24) {
-      label = `24:00（翌日0時）`
-    }
-    return { value: `${hour}:00`, label }
-  })
-
-  const currentSpaceBookings = bookings.filter(
-    (b) => b.space_id === selectedSpace?.id && b.date === selectedDate
-  )
-
-  // 終了後1時間のバッファーを含めて時間帯が選択不可か判定するロジック
-  const isTimeSlotDisabled = (timeStr: string) => {
-    if (!selectedDate) return false
-    const timeVal = parseInt(timeStr.split(':')[0])
-
-    for (const b of currentSpaceBookings) {
-      const bStart = parseInt(b.start_time.split(':')[0])
-      const bEnd = parseInt(b.end_time.split(':')[0])
-      const bufferedEnd = bEnd + 1 // 終了後1時間は掃除・入れ替えのため選択不可
-
-      if (timeVal >= bStart && timeVal < bufferedEnd) {
-        return true
-      }
-    }
-    return false
-  }
-
-  // クーポン適用判定
-  const isCouponApplied =
-    userName.trim() === '豊臣秀吉' &&
-    email.trim() === 'kindafighters27@gmail.com' &&
-    couponCode.trim() === '0505'
-
-  const calculatePrice = (start: string, end: string) => {
-    if (!start || !end) return 0
-    const startHour = parseInt(start.split(':')[0])
-    const endHour = parseInt(end.split(':')[0])
-    const hours = endHour - startHour
-    if (hours <= 0) return 0
-
-    // クーポン適用時は何時間でも6時間分の料金（12,000円）とする
-    if (isCouponApplied) {
-      return 12000
-    }
-
-    if (hours <= 6) {
-      return 12000
-    } else {
-      return 12000 + (hours - 6) * 2000
-    }
-  }
-
-  const totalPrice = calculatePrice(startTime, endTime)
-
-  const handleBooking = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedDate || !startTime || !endTime || !userName || !email) {
-      alert('すべての項目を入力してください。')
-      return
-    }
-
-    const startH = parseInt(startTime.split(':')[0])
-    const endH = parseInt(endTime.split(':')[0])
-    if (endH <= startH) {
-      alert('終了時間は開始時間より後に設定してください。')
-      return
-    }
-
-    // 選択された時間帯の中に既存の予約やバッファー時間が含まれていないか二重チェック
-    const startVal = parseInt(startTime.split(':')[0])
-    const endVal = parseInt(endTime.split(':')[0])
-    for (let t = startVal; t < endVal; t++) {
-      if (isTimeSlotDisabled(`${String(t).padStart(2, '0')}:00`)) {
-        alert('選択された時間帯に既存の予約（または準備時間）が含まれています。別の時間をお選びください。')
-        return
-      }
-    }
-
-    const newBookingData = {
-      space_id: selectedSpace.id,
-      date: selectedDate,
-      start_time: startTime,
-      end_time: endTime,
-      user_name: userName,
-      email: email,
-      total_price: totalPrice,
-      status: 'active',
-      is_confirmed: false,
-    }
-
-    const { error } = await supabase.from('bookings').insert([newBookingData])
-
-    if (error) {
-      alert('予約に失敗しました: ' + error.message)
-    } else {
-      // 予約成功時に管理者へメール通知
-      try {
-        await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'booking', booking: newBookingData }),
-        })
-      } catch (err) {
-        console.error('メール通知送信失敗:', err)
-      }
-
-      alert('予約が完了しました！')
-      setStartTime('')
-      setEndTime('')
-      setUserName('')
-      setEmail('')
-      setCouponCode('')
-      setSelectedDate('')
-      fetchInitialData()
-    }
-  }
-
-  const handleSearchUserBookings = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!cancelEmail) return
-
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*, spaces(name)')
-      .eq('email', cancelEmail)
-      .neq('status', 'cancelled')
-
-    if (error) {
-      alert('予約情報の取得に失敗しました。')
-    } else {
-      setUserBookings(data || [])
-      if (data?.length === 0) {
-        alert('該当する有効な予約が見つかりませんでした。')
-      }
-    }
-  }
-
-  const handleUserCancelBooking = async (bookingObj: any) => {
-    if (!confirm('本当にこの予約をキャンセルしますか？')) return
-
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancelled' })
-      .eq('id', bookingObj.id)
-
-    if (error) {
-      alert('キャンセルの処理に失敗しました。')
-    } else {
-      // キャンセル成功時に管理者へメール通知
-      try {
-        await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'cancel', booking: bookingObj }),
-        })
-      } catch (err) {
-        console.error('キャンセルメール通知送信失敗:', err)
-      }
-
-      alert('予約をキャンセルしました。')
-      setUserBookings((prev) => prev.filter((b) => b.id !== bookingObj.id))
-      fetchInitialData()
-    }
-  }
-
-  // 管理者ログインのパスワード確認 (0509)
-  const handleAdminLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (inputPassword === '0509') {
-      sessionStorage.setItem('admin_auth', 'true')
-      window.location.href = '/admin'
-    } else {
-      alert('パスワードが間違っています。')
-    }
-  }
-
-  const openPdfModal = (url: string, title: string) => {
-    setPdfUrl(url)
-    setPdfTitle(title)
-    setPdfModalOpen(true)
-  }
+  const weekDates1 = getWeekDates(0 + currentWeekOffset * 2);
+  const weekDates2 = getWeekDates(1 + currentWeekOffset * 2);
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-800 pb-16">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-40">
-        <Link href="/" className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition flex items-center space-x-1.5">
-          <span>🏠</span>
-          <span>COCOKARA レンタルスペース</span>
-        </Link>
-        <div className="flex space-x-3 items-center">
+    <main className="min-h-screen bg-gray-50 text-gray-800">
+      {/* ヘッダー */}
+      <header className="bg-white border-b sticky top-0 z-50 px-6 py-4 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-2 font-bold text-lg text-gray-900">
+          <span>🏠</span> COCOKARA レンタルスペース
+        </div>
+        <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center space-x-1"
+            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition"
           >
-            <span>トップページに戻る</span>
+            トップページに戻る
           </Link>
-          <button
-            onClick={() => setCancelModalOpen(true)}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs transition"
+          <Link
+            href="/poker-v2/book"
+            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition"
           >
             予約の確認・キャンセル
-          </button>
-          <button
-            onClick={() => setPasswordModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-sm"
+          </Link>
+          <Link
+            href="/poker-v2/admin"
+            className="bg-emerald-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-emerald-700 transition shadow-sm"
           >
             管理者ログイン
-          </button>
+          </Link>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 mt-8">
-        {/* スペース基本情報・写真 */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full mb-3">
+      {/* メインコンテンツエリア */}
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        {/* スペース概要カード */}
+        <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8 space-y-6">
+          <div className="inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">
             募集中
           </div>
-          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">{selectedSpace?.name || 'COCOKARA レンタルスペース'}</h2>
-          <p className="text-xs text-gray-600 mb-6 leading-relaxed">{selectedSpace?.description || '会議や各種イベント、教室利用に最適なレンタルスペースです。'}</p>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+              COCOKARA レンタルスペース
+            </h1>
+            <p className="text-gray-600 text-sm md:text-base">
+              会議や各種イベント、教室利用に最適なレンタルスペースです。
+            </p>
+          </div>
 
-          <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center">
+          {/* 写真表示 */}
+          <div className="rounded-xl overflow-hidden border shadow-sm">
             <img
-              src="/space2.JPG"
-              alt="COCOKARA レンタルスペース"
-              className="w-full h-auto object-cover max-h-96"
+              src="/space1.JPG"
+              alt="COCOKARA レンタルスペース ポーカー台"
+              className="w-full h-auto object-cover max-h-[450px]"
             />
           </div>
-
-          {/* 設備・備品・サービス紹介セクション */}
-          <div className="mb-8 border-t border-gray-100 pt-6">
-            <h3 className="text-xs font-bold text-gray-900 mb-4 tracking-wider uppercase">設備・備品・サービス</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 mb-6">
-              {[
-                { name: '個室（壁・扉あり）', icon: '🚪' },
-                { name: 'トイレ', icon: '🚻' },
-                { name: '電源', icon: '🔌' },
-                { name: 'エアコン（冷暖房）', icon: '❄️' },
-                { name: 'キッチン設備', icon: '🍳' },
-                { name: '飲食可', icon: '🍴' },
-                { name: '飲酒可', icon: '🍷' },
-                { name: '片付けおまかせ', icon: '✨' },
-                { name: 'ゴミ処理おまかせ', icon: '🗑️' },
-              ].map((item, idx) => (
-                <div key={idx} className="bg-gray-50 border border-gray-200/80 rounded-xl p-3 text-center flex flex-col items-center justify-center transition hover:bg-emerald-50/30 hover:border-emerald-200">
-                  <span className="text-xl mb-1">{item.icon}</span>
-                  <span className="text-[11px] font-semibold text-gray-700">{item.name}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* 各種規約・マニュアル確認ボタン */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
-              <button
-                onClick={() => openPdfModal('/kiyaku2026.pdf', '利用規約')}
-                className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
-              >
-                <span>📜</span>
-                <span>利用規約を確認する</span>
-              </button>
-              <button
-                onClick={() => openPdfModal('/hausururu2026_COCOKARA.pdf', 'ハウスルール')}
-                className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
-              >
-                <span>📋</span>
-                <span>ハウスルールを確認する</span>
-              </button>
-              <button
-                onClick={() => openPdfModal('/taishuru2026.pdf', '入退出マニュアル')}
-                className="bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 text-gray-700 hover:text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2 shadow-sm"
-              >
-                <span>🔑</span>
-                <span>入退出マニュアルを確認する</span>
-              </button>
-            </div>
-          </div>
-
-          {/* アクセス・所在地（Googleマップ）セクション */}
-          <div className="mb-8 border-t border-gray-100 pt-6">
-            <h3 className="text-xs font-bold text-gray-900 mb-2 tracking-wider uppercase">アクセス・所在地</h3>
-            <p className="text-xs text-gray-700 font-semibold mb-4">📍 〒570-0012 大阪府守口市金田町2-1-9 COCOKARA</p>
-            <div className="rounded-xl overflow-hidden border border-gray-200 w-full h-72">
-              <iframe
-                title="COCOKARA Map"
-                src="https://maps.google.com/maps?q=%E5%A4%A7%E9%98%AA%E5%BA%9C%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9&t=&z=16&ie=UTF8&iwloc=&output=embed"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen={false}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              ></iframe>
-            </div>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-            <h3 className="text-xs font-bold text-amber-900 mb-2">利用料金プラン</h3>
-            <ul className="text-xs text-amber-800 space-y-1">
-              <li>・基本料金（1〜6時間まで）: ¥12,000</li>
-              <li>・6時間超過分: 1時間につき +¥2,000</li>
-            </ul>
-          </div>
-
-          {/* 予約カレンダー（＜ ＞ボタンで週送り・最大1ヶ月＝2週間オフセット×2＝最大オフセット2程度） */}
-          <div>
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xs font-bold text-gray-900">予約空き状況（最大1ヶ月先まで）</h3>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setWeekOffset((prev) => Math.max(0, prev - 1))}
-                  disabled={weekOffset === 0}
-                  className={`p-1.5 rounded-lg border text-xs font-bold transition ${
-                    weekOffset === 0
-                      ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed'
-                      : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-sm'
-                  }`}
-                  title="前の週へ"
-                >
-                  ＜ 前の週
-                </button>
-                <button
-                  onClick={() => setWeekOffset((prev) => Math.min(2, prev + 1))}
-                  disabled={weekOffset >= 2}
-                  className={`p-1.5 rounded-lg border text-xs font-bold transition ${
-                    weekOffset >= 2
-                      ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed'
-                      : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-sm'
-                  }`}
-                  title="次の週へ"
-                >
-                  次の週 ＞
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-              {twoWeeksDates.map((dateStr) => {
-                const targetDate = new Date(dateStr)
-                targetDate.setHours(0, 0, 0, 0)
-                const isPast = targetDate < today
-
-                const dayBookings = bookings.filter(
-                  (b) => b.space_id === selectedSpace?.id && b.date === dateStr
-                )
-                const count = dayBookings.length
-
-                let statusText = '空きあり'
-                let statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                if (isPast) {
-                  statusText = 'ー 終了'
-                  statusColor = 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed'
-                } else if (count === 1) {
-                  statusText = '△ 残りわずか'
-                  statusColor = 'bg-amber-50 text-amber-700 border-amber-200'
-                } else if (count >= 2) {
-                  statusText = '× 満室'
-                  statusColor = 'bg-red-50 text-red-700 border-red-200'
-                }
-
-                const formattedDate = `${dateStr.slice(5).replace('/', '-')}（${getDayOfWeek(dateStr)}）`
-
-                return (
-                  <div
-                    key={dateStr}
-                    onClick={() => {
-                      if (!isPast) {
-                        setSelectedDate(dateStr)
-                      }
-                    }}
-                    className={`p-3 rounded-xl border text-center transition ${
-                      isPast
-                        ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
-                        : selectedDate === dateStr
-                        ? 'ring-2 ring-emerald-500 bg-emerald-50/50 cursor-pointer'
-                        : 'hover:bg-gray-50 cursor-pointer'
-                    } ${!isPast ? statusColor : ''}`}
-                  >
-                    <div className="text-[11px] font-bold">{formattedDate}</div>
-                    <div className="text-[10px] font-semibold mt-1">{statusText}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
         </div>
 
-        {selectedDate && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">
-              ご予約フォーム（選択中: <span className="text-emerald-600">{selectedDate}</span>）
-            </h3>
-            <form onSubmit={handleBooking} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">開始時間</label>
-                  <select
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                    required
-                  >
-                    <option value="">開始時間を選択</option>
-                    {startTimeOptions.slice(0, 24).map((time) => {
-                      const disabled = isTimeSlotDisabled(time)
-                      return (
-                        <option key={time} value={time} disabled={disabled}>
-                          {time} {disabled ? '（予約不可・バッファー含む）' : ''}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">終了時間</label>
-                  <select
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                    required
-                  >
-                    <option value="">終了時間を選択</option>
-                    {endTimeOptions.map((item) => {
-                      const disabled = isTimeSlotDisabled(item.value)
-                      return (
-                        <option key={item.value} value={item.value} disabled={disabled}>
-                          {item.label} {disabled ? '（予約不可・バッファー含む）' : ''}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">お名前</label>
-                  <input
-                    type="text"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    placeholder="山田 太郎"
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">メールアドレス</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="example@email.com"
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">クーポンコード（お持ちの方）</label>
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder=""
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {isCouponApplied && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-bold text-center">
-                  🎉 クーポン適用（追加時間サービス）：6時間分の料金でご利用いただけます！
-                </div>
-              )}
-
-              {totalPrice > 0 && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
-                  <span className="text-xs text-emerald-800 font-bold">お支払い予定金額: </span>
-                  <span className="text-base font-extrabold text-emerald-600">¥{totalPrice.toLocaleString()}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-sm"
+        {/* 設備・備品・サービス */}
+        <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8 space-y-6">
+          <h2 className="text-lg font-bold text-gray-900 border-b pb-3">
+            設備・備品・サービス
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {[
+              { icon: '🚪', label: '個室 (壁・扉あり)' },
+              { icon: '🚻', label: 'トイレ' },
+              { icon: '🔌', label: '電源' },
+              { icon: '❄️', label: 'エアコン (冷暖房)' },
+              { icon: '🍳', label: 'キッチン設備' },
+              { icon: '🍴', label: '飲食可' },
+              { icon: '🍷', label: '飲酒可' },
+              { icon: '✨', label: '片付けおまかせ' },
+              { icon: '🗑️️', label: 'ゴミ処理おまかせ' },
+            ].map((item, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col items-center justify-center p-4 border rounded-xl bg-gray-50/50 hover:bg-gray-50 transition text-center gap-2"
               >
-                予約を確定する
-              </button>
-            </form>
+                <span className="text-2xl">{item.icon}</span>
+                <span className="text-xs font-medium text-gray-700">{item.label}</span>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
 
-      {/* PDF閲覧用ポップアップモーダル */}
-      {pdfModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col h-[85vh]">
-            <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
-              <h3 className="text-sm font-bold text-gray-900">{pdfTitle}</h3>
-              <button
-                onClick={() => setPdfModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-lg px-2"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex-1 bg-gray-100 rounded-xl overflow-hidden mb-4 border border-gray-200">
-              <iframe
-                src={pdfUrl}
-                title={pdfTitle}
-                className="w-full h-full"
-              />
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setPdfModalOpen(false)}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-sm flex items-center justify-center space-x-2"
-              >
-                <span>🏠</span>
-                <span>トップページに戻る</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {cancelModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">ご予約の確認・キャンセル</h3>
-            <form onSubmit={handleSearchUserBookings} className="space-y-3 mb-4">
-              <label className="block text-xs font-bold text-gray-700">ご登録のメールアドレス</label>
-              <div className="flex space-x-2">
-                <input
-                  type="email"
-                  value={cancelEmail}
-                  onChange={(e) => setCancelEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  className="flex-1 px-3 py-2 rounded-xl border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-emerald-500"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition"
-                >
-                  検索
-                </button>
-              </div>
-            </form>
-
-            {userBookings.length > 0 && (
-              <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
-                {userBookings.map((b) => {
-                  const bookingDate = new Date(b.date)
-                  bookingDate.setHours(0, 0, 0, 0)
-                  const isFutureOrToday = bookingDate >= today
-
-                  return (
-                    <div key={b.id} className="border border-gray-200 rounded-xl p-3 flex justify-between items-center bg-gray-50 text-xs">
-                      <div>
-                        <div className="font-bold text-gray-900">{b.date} ({b.start_time?.slice(0, 5)}〜{b.end_time?.slice(0, 5)})</div>
-                        <div className="text-gray-600">¥{(b.total_price || 0).toLocaleString()}</div>
-                      </div>
-                      {isFutureOrToday ? (
-                        <button
-                          onClick={() => handleUserCancelBooking(b)}
-                          className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg transition"
-                        >
-                          キャンセルする
-                        </button>
-                      ) : (
-                        <span className="bg-gray-200 text-gray-500 font-bold px-3 py-1.5 rounded-lg text-[11px] cursor-not-allowed">
-                          キャンセル不可（終了分）
-                        </span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setCancelModalOpen(false)
-                setUserBookings([])
-                setCancelEmail('')
-              }}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 rounded-xl text-xs transition"
+          {/* 各種リンクボタン */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+            <a
+              href="/kiyaku2026.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border rounded-xl py-3 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition"
             >
-              閉じる
-            </button>
+              <span>📜</span> 利用規約を確認する
+            </a>
+            <a
+              href="/hausururu2026_COCOKARA.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border rounded-xl py-3 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition"
+            >
+              <span>📋</span> ハウスルールを確認する
+            </a>
+            <a
+              href="/taishuru2026.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border rounded-xl py-3 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition"
+            >
+              <span>🔑</span> 入退出マニュアルを確認する
+            </a>
           </div>
         </div>
-      )}
 
-      {/* 管理者ログインモーダル */}
-      {passwordModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
-            <h3 className="text-sm font-bold text-gray-900 mb-4 text-center">管理者ログイン</h3>
-            <form onSubmit={handleAdminLoginSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">パスワード</label>
-                <input
-                  type="password"
-                  value={inputPassword}
-                  onChange={(e) => setInputPassword(e.target.value)}
-                  placeholder="パスワードを入力"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-xs text-gray-900 font-semibold focus:outline-none focus:border-emerald-500 placeholder:text-gray-400 placeholder:font-normal"
-                  required
-                  autoFocus
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
+        {/* アクセス・所在地 */}
+        <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8 space-y-6">
+          <h2 className="text-lg font-bold text-gray-900">アクセス・所在地</h2>
+          <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+            <span className="text-red-500">📍</span> 〒570-0012 大阪府守口市金田町2-1-9 COCOKARA
+          </div>
+
+          {/* マップ埋め込み・リンク */}
+          <div className="relative rounded-xl overflow-hidden border h-72 bg-gray-100 flex flex-col justify-end">
+            <div className="absolute top-4 left-4 z-10">
+              <a
+                href="https://maps.google.com/?q=大阪府守口市金田町2-1-9"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white px-4 py-2 rounded-lg shadow font-semibold text-sm text-emerald-600 hover:bg-emerald-50 transition border flex items-center gap-1"
               >
-                ログイン
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPasswordModalOpen(false)
-                  setInputPassword('')
-                }}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded-xl text-xs transition"
-              >
-                キャンセル
-              </button>
-            </form>
+                マップで開く ↗
+              </a>
+            </div>
+            <iframe
+              title="Google Map"
+              src="https://maps.google.com/maps?q=大阪府守口市金田町2-1-9&t=&z=15&ie=UTF8&iwloc=&output=embed"
+              className="w-full h-full border-0"
+              loading="lazy"
+            ></iframe>
           </div>
         </div>
-      )}
+
+        {/* 利用料金プラン */}
+        <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-6 md:p-8 space-y-4">
+          <h2 className="text-lg font-bold text-gray-900">利用料金プラン</h2>
+          <ul className="space-y-2 text-sm text-gray-700">
+            <li>• 基本料金（1〜6時間まで）: ¥12,000</li>
+            <li>• 6時間超過分: 1時間につき +¥2,000</li>
+          </ul>
+        </div>
+
+        {/* 予約空き状況 */}
+        <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-lg font-bold text-gray-900">予約空き状況（最大1ヶ月先まで）</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentWeekOffset(Math.max(0, currentWeekOffset - 1))}
+                disabled={currentWeekOffset === 0}
+                className="border px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                ＜ 前の週
+              </button>
+              <button
+                onClick={() => setCurrentWeekOffset(currentWeekOffset + 1)}
+                disabled={currentWeekOffset >= 3}
+                className="border px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                次の週 ＞
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+            {[...weekDates1, ...weekDates2].map((item, idx) => (
+              <Link
+                href="/poker-v2"
+                key={idx}
+                className="border rounded-xl p-3 bg-emerald-50/40 hover:bg-emerald-50 transition text-center flex flex-col justify-between gap-2 border-emerald-200"
+              >
+                <span className="text-xs font-bold text-gray-800">{item.dateStr}</span>
+                <span className="text-xs font-semibold text-emerald-700 bg-emerald-100/60 py-1 rounded">
+                  {item.status}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
     </main>
-  )
+  );
 }
