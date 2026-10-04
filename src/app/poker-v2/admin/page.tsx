@@ -31,7 +31,7 @@ const initialBookings = [
 
 export default function PokerV2AdminPage() {
   const [activeTab, setActiveTab] = useState<'list' | 'calendar' | 'sales' | 'customers'>('list');
-  const [bookings, setBookings] = useState(initialBookings);
+  const [bookings, setBookings] = useState<any[]>(initialBookings);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -614,5 +614,3 @@ export default function PokerV2AdminPage() {
     </main>
   );
 }
-
-git add . && git commit -m "update admin dashboard code" && git push
