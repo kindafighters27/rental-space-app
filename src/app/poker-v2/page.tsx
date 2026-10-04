@@ -79,7 +79,7 @@ export default function PokerV2BookingPage() {
 
     // 1. Supabaseのデータベースに保存
     try {
-      const { error } = await supabase.from('bookings').insert([bookingData]);
+      const { error } = await supabase.from('poker_bookings').insert([bookingData]);
       if (error) {
         console.error('Supabase insert error:', error.message);
         alert('保存に失敗しました: ' + error.message);
