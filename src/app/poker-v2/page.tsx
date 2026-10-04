@@ -6,25 +6,50 @@ import { supabase } from '@/lib/supabase';
 
 export default function PokerV2BookingPage() {
   const [startTime, setStartTime] = useState('18:00');
-  const [endTime, setEndTime] = useState('32:00');
+  const [endTime, setEndTime] = useState('30:00');
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('kindafighters27@gmail.com');
   const [coupon, setCoupon] = useState('');
 
-  // 9:00 (540分) から 30:00 (1800分、翌朝6:00) までの1時間刻みの時間選択肢を生成
-  const timeOptions = [];
-  for (let min = 9 * 60; min <= 30 * 60; min += 60) {
+  // 開始時間の選択肢を生成 (9:00 から 23:00 まで)
+  const startTimeOptions = [];
+  for (let min = 9 * 60; min <= 23 * 60; min += 60) {
     const h = Math.floor(min / 60);
     const m = min % 60;
     const hourStr = String(h).padStart(2, '0');
     const minStr = String(m).padStart(2, '0');
     
-    let label = `${hourStr}:${minStr}`;
-    if (h >= 24) {
-      const nextH = h - 24;
-      label = `${hourStr}:${minStr} (翌日午前${String(nextH).padStart(2, '0')}時)`;
+    let label = '';
+    if (h === 0) {
+      label = `午前12時`;
+    } else if (h < 12) {
+      label = `午前${h}時`;
+    } else if (h === 12) {
+      label = `午後12時`;
+    } else {
+      label = `午後${h - 12}時`;
     }
-    timeOptions.push({ value: `${hourStr}:${minStr}`, label });
+
+    startTimeOptions.push({ value: `${hourStr}:${minStr}`, label });
+  }
+
+  // 終了時間の選択肢を生成 (21:00 から 30:00 まで)
+  const endTimeOptions = [];
+  for (let min = 21 * 60; min <= 30 * 60; min += 60) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    const hourStr = String(h).padStart(2, '0');
+    const minStr = String(m).padStart(2, '0');
+    
+    let label = '';
+    if (h < 24) {
+      label = `午後${h - 12}時`;
+    } else {
+      const nextH = h - 24;
+      label = `午前${h}時（翌朝${String(nextH).padStart(2, '0')}時）`;
+    }
+
+    endTimeOptions.push({ value: `${hourStr}:${minStr}`, label });
   }
 
   // 特別クーポンの適用判定
@@ -125,7 +150,7 @@ export default function PokerV2BookingPage() {
                 onChange={(e) => setStartTime(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500"
               >
-                {timeOptions.map((opt) => (
+                {startTimeOptions.map((opt) => (
                   <option key={`start-${opt.value}`} value={opt.value}>
                     {opt.label}
                   </option>
@@ -140,7 +165,7 @@ export default function PokerV2BookingPage() {
                 onChange={(e) => setEndTime(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500"
               >
-                {timeOptions.map((opt) => (
+                {endTimeOptions.map((opt) => (
                   <option key={`end-${opt.value}`} value={opt.value}>
                     {opt.label}
                   </option>
