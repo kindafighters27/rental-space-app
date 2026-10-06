@@ -58,8 +58,8 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 各種確認モーダルの状態管理 ('kiyaku' | 'house' | 'manual' | null)
-  const [activeModal, setActiveModal] = useState<'kiyaku' | 'house' | 'manual' | null>(null);
+  // 各種確認モーダルの状態管理 ('kiyaku' | 'house' | null)
+  const [activeModal, setActiveModal] = useState<'kiyaku' | 'house' | null>(null);
 
   // 時間計算と料金計算 (基本: 1~6時間 ¥12,000, 6時間超え 1時間につき +¥2,000)
   // クーポンコード 0505 記入時は延長料金無料（常に¥12,000）
@@ -140,8 +140,8 @@ export default function V3RentalSpacePage() {
           </p>
           <div className="overflow-hidden rounded-xl bg-slate-200 aspect-video relative group">
             <img 
-              src="https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1200&q=80" 
-              alt="COCOKARA 室内" 
+              src="/IMG_7072.jpg" 
+              alt="COCOKARA 室内 ポーカーテーブル" 
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           </div>
@@ -207,13 +207,15 @@ export default function V3RentalSpacePage() {
               <span>📋</span>
               <span>ハウスルールを確認する</span>
             </button>
-            <button 
-              onClick={() => setActiveModal('manual')}
-              className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm"
+            <a 
+              href="/taishuru2026.pdf"
+              target="_blank"
+              rel="noreferrer"
+              className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm text-center"
             >
               <span>🔑</span>
               <span>入退出マニュアルを確認する</span>
-            </button>
+            </a>
           </div>
         </div>
 
@@ -305,7 +307,7 @@ export default function V3RentalSpacePage() {
         </div>
       </main>
 
-      {/* 各種確認モーダル（利用規約 / ハウスルール / 入退出マニュアル） */}
+      {/* 各種確認モーダル（利用規約 / ハウスルール） */}
       {activeModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-xl border border-slate-100 flex flex-col">
@@ -321,12 +323,6 @@ export default function V3RentalSpacePage() {
                   <>
                     <span>📋</span>
                     <span>COCOKARA ハウスルール</span>
-                  </>
-                )}
-                {activeModal === 'manual' && (
-                  <>
-                    <span>🔑</span>
-                    <span>COCOKARA 入退出マニュアル</span>
                   </>
                 )}
               </h3>
@@ -435,66 +431,6 @@ export default function V3RentalSpacePage() {
                   </div>
                 </div>
               )}
-
-              {/* 入退出マニュアル */}
-              {activeModal === 'manual' && (
-                <div className="space-y-4">
-                  {/* 入室手順 */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <h4 className="font-bold text-emerald-800 text-sm pb-2 border-b border-slate-200">
-                      【入室時の手順 (Check-in)】
-                    </h4>
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs md:text-sm mb-1">入室① 鍵を開ける</div>
-                      <p className="text-xs md:text-sm text-slate-600">
-                        キーボックス(番号キー)に鍵が1つ入っています。(シャッター)鍵を使用しシャッターを開け、自動ドアから店内に入り、内ドアを開けて入室します。<br />
-                        <span className="text-rose-600 font-semibold">※暗証番号は予約確定メールに記載しております。</span>
-                      </p>
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs md:text-sm mb-1">入室② 電気をつける</div>
-                      <p className="text-xs md:text-sm text-slate-600">
-                        キッチン側の壁のスイッチボックスの右側のメイン電気をONにします。エアコン等はテーブル上のリモコンを使用してください。<br />
-                        <span className="text-slate-500 text-xs">※便所・台所・エアコン前は常時点灯(ON・OFF不要)です。</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 退出手順 */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <h4 className="font-bold text-emerald-800 text-sm pb-2 border-b border-slate-200">
-                      【退出時の手順 (Check-out)】
-                    </h4>
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs md:text-sm mb-1">退出① ゴミ処理</div>
-                      <p className="text-xs md:text-sm text-slate-600">
-                        持ち込み食材・飲料で出たゴミはすべてお持ち帰りください。<br />
-                        <span className="text-rose-600 font-semibold">※タバコ等の吸い殻も含みます。残さないでください。</span>
-                      </p>
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs md:text-sm mb-1">退出② 電気を消す</div>
-                      <p className="text-xs md:text-sm text-slate-600">
-                        キッチン側の壁のスイッチボックスの右側のメイン電気をOFFにします。エアコン等はテーブル上のリモコンを使用してください。<br />
-                        <span className="text-slate-500 text-xs">※便所・台所・エアコン前は常時点灯(ON・OFF不要)です。</span>
-                      </p>
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs md:text-sm mb-1">退出③ 鍵を閉める</div>
-                      <p className="text-xs md:text-sm text-slate-600">
-                        シャッターの鍵を閉めます。キーボックスに鍵を入れ、番号を適当な数字にしてください。
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 補足案内 */}
-                  <div className="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200/60 text-xs md:text-sm text-slate-700 space-y-1">
-                    <p className="font-bold text-emerald-900">ご協力のお願い</p>
-                    <p>お帰りの際は戸締まり・消灯・ゴミのお持ち帰りにご協力お願いいたします。</p>
-                    <p className="font-bold text-emerald-900 pt-1">緊急連絡先: 090-2040-5861 (中村)</p>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* モーダル下部（PDFリンク・閉じるボタン） */}
@@ -513,17 +449,6 @@ export default function V3RentalSpacePage() {
               {activeModal === 'house' && (
                 <a 
                   href="/hausururu2026_COCOKARA.pdf" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1"
-                >
-                  <span>📄 PDFで表示・ダウンロード</span>
-                  <span>↗</span>
-                </a>
-              )}
-              {activeModal === 'manual' && (
-                <a 
-                  href="/taishuru2026.pdf" 
                   target="_blank" 
                   rel="noreferrer"
                   className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1"
