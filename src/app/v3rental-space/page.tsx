@@ -41,7 +41,6 @@ export default function V3RentalSpacePage() {
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedMonth, setSelectedMonth] = useState('2026-10');
   const [expenses, setExpenses] = useState<{ [key: string]: { rent: number; staff: number; drink: number; wifi: number; equipment: number } }>({
-    '2026-09': { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 },
     '2026-10': { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 }
   });
 
@@ -337,7 +336,7 @@ export default function V3RentalSpacePage() {
 
       if (error) throw error;
 
-      alert('予約情報を更新しました。');
+      alert('予約情報の更新しました。');
       setIsEditModalOpen(false);
       fetchAdminBookings();
     } catch (err: unknown) {
@@ -358,47 +357,28 @@ export default function V3RentalSpacePage() {
     }));
   };
 
-  // 柔軟な日付・年・月マッチング関数（日付文字列から月や年を正確に抽出し、9月(9-26など)や10月などに完全に遡ってリンク・反映できるように改善）
-  const parseMonthAndYearFromDate = (dateStr: string) => {
-    if (!dateStr) return { year: '2026', month: '10' };
-    
-    // 例: "10-7 (水)", "9-26 (土)", "2026-10-07", "2026-09-26" などに対応
-    let m = '10';
-    let y = '2026';
-
-    if (dateStr.includes('2026')) y = '2026';
-    else if (dateStr.includes('2027')) y = '2027';
-    else if (dateStr.includes('2028')) y = '2028';
-
-    // 月の抽出
-    if (dateStr.startsWith('9-') || dateStr.includes('-9-') || dateStr.includes('/9/')) m = '09';
-    else if (dateStr.startsWith('10-') || dateStr.includes('-10-') || dateStr.includes('/10/')) m = '10';
-    else if (dateStr.startsWith('11-') || dateStr.includes('-11-') || dateStr.includes('/11/')) m = '11';
-    else if (dateStr.startsWith('12-') || dateStr.includes('-12-') || dateStr.includes('/12/')) m = '12';
-    else if (dateStr.startsWith('1-') || dateStr.includes('-01-') || dateStr.includes('/1/')) m = '01';
-    else if (dateStr.startsWith('2-') || dateStr.includes('-02-') || dateStr.includes('/2/')) m = '02';
-    else if (dateStr.startsWith('3-') || dateStr.includes('-03-') || dateStr.includes('/3/')) m = '03';
-    else if (dateStr.startsWith('4-') || dateStr.includes('-04-') || dateStr.includes('/4/')) m = '04';
-    else if (dateStr.startsWith('5-') || dateStr.includes('-05-') || dateStr.includes('/5/')) m = '05';
-    else if (dateStr.startsWith('6-') || dateStr.includes('-06-') || dateStr.includes('/6/')) m = '06';
-    else if (dateStr.startsWith('7-') || dateStr.includes('-07-') || dateStr.includes('/7/')) m = '07';
-    else if (dateStr.startsWith('8-') || dateStr.includes('-08-') || dateStr.includes('/8/')) m = '08';
-
-    // 1桁の月（例: 9）を "09" に整形
-    const formattedMonth = m.length === 1 ? `0${m}` : m;
-    return { year: y, month: formattedMonth, yearMonth: `${y}-${formattedMonth}` };
-  };
-
+  // 柔軟な日付・年・月マッチング関数（Supabaseの「10-7 (水)」や「2026-10-07」等に対応）
   const matchYear = (dateStr: string, year: string) => {
     if (!dateStr) return false;
-    const parsed = parseMonthAndYearFromDate(dateStr);
-    return parsed.year === year;
+    if (dateStr.includes(year)) return true;
+    // 「10-7 (水)」のような形式の場合、現在選択中の年（例: 2026）に属するとみなす
+    if (!dateStr.includes('-') && !dateStr.includes('/')) return false;
+    return true; // デフォルトで当年のものとして扱う
   };
 
   const matchMonth = (dateStr: string, monthStr: string) => {
     if (!dateStr) return false;
-    const parsed = parseMonthAndYearFromDate(dateStr);
-    return parsed.yearMonth === monthStr;
+    // monthStr は "2026-10" の形式
+    const [targetYear, targetMonth] = monthStr.split('-'); // ["2026", "10"]
+    const monthNum = parseInt(targetMonth, 10); // 10 または 1 等
+
+    if (dateStr.includes(monthStr)) return true;
+    // 「10-7 (水)」や「10-9 (金)」のような形式に対応
+    if (dateStr.startsWith(`${monthNum}-`) || dateStr.startsWith(`0${monthNum}-`) || dateStr.includes(`-${monthNum}-`) || dateStr.includes(`/${monthNum}/`)) {
+      return true;
+    }
+    // もし日付データに月が含まれていない場合やフォーマットが異なる場合は、選択月を強制適用するか部分一致
+    return false;
   };
 
   // フィルタリング処理（管理者画面）
@@ -663,7 +643,7 @@ export default function V3RentalSpacePage() {
               </table>
             </div>
           ) : (
-            /* 売上管理画面 (日付け変更による過去・未来の月別自動連動反映対応) */
+            /* 売上管理画面 (Supabase連携データ完全反映) */
             <div className="space-y-6">
               {/* 年間売上サマリー */}
               <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
@@ -1088,7 +1068,7 @@ export default function V3RentalSpacePage() {
 
             <form onSubmit={handleSaveEdit} className="space-y-4 text-sm">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">予約日 (例: 9-26 (土), 10-6 (火) など)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">予約日</label>
                 <input
                   type="text"
                   required
