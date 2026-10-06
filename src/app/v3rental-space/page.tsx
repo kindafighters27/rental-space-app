@@ -1328,7 +1328,7 @@ export default function V3RentalSpacePage() {
                 <input
                   type="password"
                   required
-                  placeholder="パスワード (0509)"
+                  placeholder="パスワードを入力"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -1627,7 +1627,7 @@ export default function V3RentalSpacePage() {
                     <label className="block text-xs font-bold text-slate-700 mb-1">クーポンコード（お持ちの方）</label>
                     <input
                       type="text"
-                      placeholder="例: 0505"
+                      placeholder="クーポンコードを入力"
                       value={coupon}
                       onChange={(e) => setCoupon(e.target.value)}
                       className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
