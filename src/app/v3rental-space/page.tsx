@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export default function V3RentalSpacePage() {
+export default function PokerV2Page() {
   // 予約モーダル・フォームの状態管理
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
@@ -140,7 +140,7 @@ export default function V3RentalSpacePage() {
     });
   };
 
-  // 指定された開始・終了時間が既存の予約と重複していないか、および掃除時間（1時間前まで）をクリアしているかチェック
+  // 指定された開始・終了時間が既存の予約と重複していないかチェック
   const checkTimeOverlap = (sDate: string, sTime: string, eTime: string, excludeId?: string) => {
     const existing = getExistingBookingsForDate(sDate).filter((b) => b.id !== excludeId);
     if (existing.length === 0) return null;
@@ -152,10 +152,7 @@ export default function V3RentalSpacePage() {
       const bStart = parseInt(b.start_time.split(':')[0], 10);
       const bEnd = parseInt(b.end_time.split(':')[0], 10);
 
-      if (newStart < bStart && newEnd > (bStart - 1)) {
-        return `選択された時間帯は、${b.start_time}開始の別のご予約に対する掃除・準備時間（1時間前までの制限）と重複しています。終了時間を ${b.start_time.split(':')[0]}:00 の1時間前（${b.start_time.split(':')[0] - 1}:00）以前に設定してください。`;
-      }
-
+      // 通常の時間帯重複チェック (A開始 < B終了 かつ A終了 > B開始)
       if (newStart < bEnd && newEnd > bStart) {
         return `指定された時間帯（${sTime} 〜 ${eTime}）は、すでに他のお客様のご予約（${b.start_time} 〜 ${b.end_time}）が入っているためご予約できません。`;
       }
@@ -163,7 +160,7 @@ export default function V3RentalSpacePage() {
     return null;
   };
 
-  // 選択可能な開始時間リスト
+  // 選択可能な開始時間リスト（既存予約の時間帯に含まれる場合は選択不可）
   const getAvailableStartHours = () => {
     const existing = getExistingBookingsForDate(selectedDate);
     const hoursList = [];
@@ -184,7 +181,7 @@ export default function V3RentalSpacePage() {
     return hoursList;
   };
 
-  // 選択可能な終了時間リスト
+  // 選択可能な終了時間リスト（開始時間以降かつ、途中に既存予約を跨がない範囲）
   const getAvailableEndHours = () => {
     const startH = parseInt(startTime.split(':')[0], 10);
     const existing = getExistingBookingsForDate(selectedDate);
@@ -193,9 +190,8 @@ export default function V3RentalSpacePage() {
     for (const b of existing) {
       const bStart = parseInt(b.start_time.split(':')[0], 10);
       if (bStart > startH) {
-        const cleaningLimit = bStart - 1;
-        if (cleaningLimit < maxAllowedEnd) {
-          maxAllowedEnd = cleaningLimit;
+        if (bStart < maxAllowedEnd) {
+          maxAllowedEnd = bStart;
         }
       }
     }
@@ -244,7 +240,7 @@ export default function V3RentalSpacePage() {
     setIsSubmitting(true);
     setErrorMessage('');
 
-    // 重複・掃除時間チェック
+    // 重複チェック
     const overlapError = checkTimeOverlap(selectedDate, startTime, endTime);
     if (overlapError) {
       setErrorMessage(overlapError);
@@ -252,29 +248,31 @@ export default function V3RentalSpacePage() {
       return;
     }
 
+    const bookingData = {
+      date: selectedDate,
+      start_time: startTime,
+      end_time: endTime,
+      name: name,
+      email: email, // 修正箇所: 正しいカラム名 'email' を使用
+      phone: phone || null,
+      coupon: coupon || null,
+      notes: notes || null,
+      total_price: price,
+      status: 'confirmed'
+    };
+
     try {
       const { error } = await supabase
         .from('poker_bookings')
-        .insert([
-          {
-            date: selectedDate,
-            start_time: startTime,
-            end_time: endTime,
-            name: name,
-            email: email,
-            phone: phone || null,
-            coupon: coupon || null,
-            notes: notes || null,
-            total_price: price,
-            status: 'confirmed'
-          }
-        ]);
+        .insert([bookingData]);
 
       if (error) {
-        throw error;
+        console.error('Supabase insert error:', error.message);
+        alert('保存に失敗しました: ' + error.message);
+        setIsSubmitting(false);
+        return;
       }
 
-      // メール送信処理（APIエラーで予約保存自体が阻害されないよう安全にラップ）
       try {
         await fetch('/api/send-email', {
           method: 'POST',
@@ -544,7 +542,7 @@ export default function V3RentalSpacePage() {
         <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <span className="text-xl">🏠</span>
-            <span className="font-bold text-lg text-slate-800">COCOKARA レンタルスペース v3</span>
+            <span className="font-bold text-lg text-slate-800">COCOKARA レンタルスペース v2</span>
           </div>
           <div className="flex items-center space-x-2 text-xs md:text-sm">
             <button 
@@ -1451,10 +1449,10 @@ export default function V3RentalSpacePage() {
                 {/* 既存の予約スケジュール表示 */}
                 {getExistingBookingsForDate(selectedDate).length > 0 && (
                   <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs space-y-1">
-                    <span className="font-bold text-amber-900 block mb-1">⚠️ この日の既存のご予約状況（掃除時間1時間含む）:</span>
+                    <span className="font-bold text-amber-900 block mb-1">⚠️ この日の既存のご予約状況:</span>
                     {getExistingBookingsForDate(selectedDate).map((b, idx) => (
                       <div key={idx} className="text-amber-800">
-                        • {b.start_time} 〜 {b.end_time} （{b.name}様）※直前予約は {b.start_time.split(':')[0] - 1}:00 まで選択可能
+                        • {b.start_time} 〜 {b.end_time} （{b.name}様）※この時間帯は選択できません
                       </div>
                     ))}
                   </div>
