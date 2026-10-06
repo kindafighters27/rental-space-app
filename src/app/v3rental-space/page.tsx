@@ -37,7 +37,7 @@ export default function V3RentalSpacePage() {
   const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'valid' | 'cancelled'>('all');
   const [adminViewMode, setAdminViewMode] = useState<'bookings' | 'customers' | 'sales'>('bookings');
 
-  // 売上管理用の状態（新規作成した V3space_expenses テーブルと完全連動）
+  // 売上管理用の状態（V3space_expenses テーブルと完全連動）
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedMonth, setSelectedMonth] = useState('2026-10');
   const [expenses, setExpenses] = useState<{ [key: string]: { rent: number; staff: number; drink: number; wifi: number; equipment: number } }>({
@@ -487,7 +487,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 経費入力変更ハンドラー（V3space_expenses テーブルに自動保存）
+  // 経費入力変更ハンドラー（V3space_expenses テーブルに安全に保存・更新）
   const handleExpenseChange = async (month: string, field: string, val: number) => {
     const currentExp = expenses[month] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
     const updatedMonthExp = { ...currentExp, [field]: val };
@@ -498,19 +498,39 @@ export default function V3RentalSpacePage() {
     }));
 
     try {
-      await supabase
+      // 1. まず該当月のレコードがすでに存在するか確認
+      const { data: existingData } = await supabase
         .from('V3space_expenses')
-        .upsert(
-          {
-            month: month,
+        .select('*')
+        .eq('month', month);
+
+      if (existingData && existingData.length > 0) {
+        // すでに存在する場合は update
+        await supabase
+          .from('V3space_expenses')
+          .update({
             rent: updatedMonthExp.rent,
             staff: updatedMonthExp.staff,
             drink: updatedMonthExp.drink,
             wifi: updatedMonthExp.wifi,
             equipment: updatedMonthExp.equipment
-          },
-          { onConflict: 'month' }
-        );
+          })
+          .eq('month', month);
+      } else {
+        // 存在しない場合は insert
+        await supabase
+          .from('V3space_expenses')
+          .insert([
+            {
+              month: month,
+              rent: updatedMonthExp.rent,
+              staff: updatedMonthExp.staff,
+              drink: updatedMonthExp.drink,
+              wifi: updatedMonthExp.wifi,
+              equipment: updatedMonthExp.equipment
+            }
+          ]);
+      }
     } catch (err) {
       console.warn('Supabaseへの経費保存に失敗しました:', err);
     }
