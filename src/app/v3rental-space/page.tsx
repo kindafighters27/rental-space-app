@@ -35,7 +35,14 @@ export default function V3RentalSpacePage() {
   const [isLoadingAdminBookings, setIsLoadingAdminBookings] = useState(false);
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
   const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'valid' | 'cancelled'>('all');
-  const [adminViewMode, setAdminViewMode] = useState<'bookings' | 'customers'>('bookings');
+  const [adminViewMode, setAdminViewMode] = useState<'bookings' | 'customers' | 'sales'>('bookings');
+
+  // 売上管理用の状態
+  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedMonth, setSelectedMonth] = useState('2026-10');
+  const [expenses, setExpenses] = useState<{ [key: string]: { rent: number; staff: number; drink: number; wifi: number; equipment: number } }>({
+    '2026-10': { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 }
+  });
 
   // 管理者用 予約編集モーダルの状態管理
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -230,7 +237,6 @@ export default function V3RentalSpacePage() {
 
       if (error) throw error;
 
-      // 画面上のリストを更新
       setUserBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
       );
@@ -300,7 +306,6 @@ export default function V3RentalSpacePage() {
     setEditingBooking(b);
     setEditDate(b.date || '');
     setEditName(b.name || '');
-    // スペース情報はnotesまたはデフォルト値から判定
     setEditSpace(b.notes?.includes('スペース:') ? b.notes.split('スペース:')[1]?.split('|')[0]?.trim() : 'COCOKARA メインルーム');
     setEditEmail(b.email || '');
     setEditStartTime(b.start_time || '13:00');
@@ -345,13 +350,22 @@ export default function V3RentalSpacePage() {
     }
   };
 
+  // 経費入力変更ハンドラー
+  const handleExpenseChange = (month: string, field: string, val: number) => {
+    setExpenses((prev) => ({
+      ...prev,
+      [month]: {
+        ...(prev[month] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 }),
+        [field]: val
+      }
+    }));
+  };
+
   // フィルタリング処理（管理者画面）
   const filteredAdminBookings = adminBookings.filter((b) => {
-    // ステータスフィルター
     if (adminStatusFilter === 'valid' && b.status === 'cancelled') return false;
     if (adminStatusFilter === 'cancelled' && b.status !== 'cancelled') return false;
 
-    // 検索クエリフィルター
     if (adminSearchQuery.trim()) {
       const q = adminSearchQuery.toLowerCase();
       const nameMatch = b.name?.toLowerCase().includes(q);
@@ -446,7 +460,7 @@ export default function V3RentalSpacePage() {
             </div>
           </div>
 
-          {/* サブナビゲーション・フィルターコントロール */}
+          {/* サブナビゲーション・コントロール */}
           <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
             <div className="flex space-x-1 text-xs md:text-sm">
               <button
@@ -460,65 +474,59 @@ export default function V3RentalSpacePage() {
                 リスト表示
               </button>
               <button
-                onClick={() => alert('カレンダー一括確認画面')}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3.5 py-1.5 rounded-lg transition"
-              >
-                カレンダー一括確認
-              </button>
-              <button
-                onClick={() => alert('売上管理画面')}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3.5 py-1.5 rounded-lg transition"
+                onClick={() => setAdminViewMode('sales')}
+                className={`px-3.5 py-1.5 rounded-lg font-bold transition ${
+                  adminViewMode === 'sales'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
               >
                 売上管理
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm w-full md:w-auto">
-              <input
-                type="text"
-                placeholder="お名前、メール、スペース名、日付で検索"
-                value={adminSearchQuery}
-                onChange={(e) => setAdminSearchQuery(e.target.value)}
-                className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+            {adminViewMode === 'bookings' && (
+              <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm w-full md:w-auto">
+                <input
+                  type="text"
+                  placeholder="お名前、メール、スペース名、日付で検索"
+                  value={adminSearchQuery}
+                  onChange={(e) => setAdminSearchQuery(e.target.value)}
+                  className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
 
-              <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg text-xs">
-                <span className="text-slate-500 pl-1 font-medium">ステータス:</span>
-                <button
-                  onClick={() => setAdminStatusFilter('all')}
-                  className={`px-2 py-1 rounded font-medium transition ${
-                    adminStatusFilter === 'all'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-200/60'
-                  }`}
-                >
-                  すべて ({adminBookings.length})
-                </button>
-                <button
-                  onClick={() => setAdminStatusFilter('valid')}
-                  className={`px-2 py-1 rounded font-medium transition ${
-                    adminStatusFilter === 'valid'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-200/60'
-                  }`}
-                >
-                  有効な予約
-                </button>
-                <button
-                  onClick={() => setAdminStatusFilter('cancelled')}
-                  className={`px-2 py-1 rounded font-medium transition ${
-                    adminStatusFilter === 'cancelled'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-200/60'
-                  }`}
-                >
-                  キャンセル済み
-                </button>
+                <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg text-xs">
+                  <span className="text-slate-500 pl-1 font-medium">ステータス:</span>
+                  <button
+                    onClick={() => setAdminStatusFilter('all')}
+                    className={`px-2 py-1 rounded font-medium transition ${
+                      adminStatusFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    すべて ({adminBookings.length})
+                  </button>
+                  <button
+                    onClick={() => setAdminStatusFilter('valid')}
+                    className={`px-2 py-1 rounded font-medium transition ${
+                      adminStatusFilter === 'valid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    有効な予約
+                  </button>
+                  <button
+                    onClick={() => setAdminStatusFilter('cancelled')}
+                    className={`px-2 py-1 rounded font-medium transition ${
+                      adminStatusFilter === 'cancelled' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    キャンセル済み
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* 予約テーブルリスト */}
+          {/* ビュー切り替え: リスト / 顧客 / 売上管理 */}
           {adminViewMode === 'bookings' ? (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
               <table className="w-full text-left text-xs md:text-sm border-collapse">
@@ -537,15 +545,11 @@ export default function V3RentalSpacePage() {
                 <tbody className="divide-y divide-slate-100">
                   {isLoadingAdminBookings ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-400">
-                        読み込み中...
-                      </td>
+                      <td colSpan={8} className="p-8 text-center text-slate-400">読み込み中...</td>
                     </tr>
                   ) : filteredAdminBookings.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-400">
-                        該当する予約が見つかりませんでした。
-                      </td>
+                      <td colSpan={8} className="p-8 text-center text-slate-400">該当する予約が見つかりませんでした。</td>
                     </tr>
                   ) : (
                     filteredAdminBookings.map((b) => {
@@ -560,13 +564,9 @@ export default function V3RentalSpacePage() {
                           <td className="p-3 whitespace-nowrap">
                             <div className="flex items-center space-x-2">
                               {b.status === 'cancelled' ? (
-                                <span className="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold">
-                                  キャンセル済み
-                                </span>
+                                <span className="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold">キャンセル済み</span>
                               ) : (
-                                <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold">
-                                  仮予約
-                                </span>
+                                <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold">仮予約</span>
                               )}
                               <label className="flex items-center space-x-1 cursor-pointer text-xs text-slate-600">
                                 <input
@@ -597,8 +597,7 @@ export default function V3RentalSpacePage() {
                 </tbody>
               </table>
             </div>
-          ) : (
-            /* 顧客リスト表示 */
+          ) : adminViewMode === 'customers' ? (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto p-4">
               <h3 className="font-bold text-slate-900 mb-3 text-sm">顧客リスト</h3>
               <table className="w-full text-left text-xs md:text-sm border-collapse">
@@ -623,12 +622,236 @@ export default function V3RentalSpacePage() {
                 </tbody>
               </table>
             </div>
+          ) : (
+            /* 売上管理画面 (画像ご提示のデザイン完全再現) */
+            <div className="space-y-6">
+              {/* 年間売上サマリー */}
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <h2 className="font-bold text-slate-900 text-base">年間売上サマリー</h2>
+                  <div className="flex items-center space-x-2 text-xs">
+                    <span className="text-slate-500 font-medium">対象年を選択:</span>
+                    {['2026', '2027', '2028', '2029', '2030'].map((yr) => (
+                      <button
+                        key={yr}
+                        onClick={() => setSelectedYear(yr)}
+                        className={`px-3 py-1.5 rounded-lg font-bold transition ${
+                          selectedYear === yr ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {yr}年
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 総売上計算 (選択された年の有効な予約) */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                    <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 総売上（有効な予約）</span>
+                    <span className="text-2xl md:text-3xl font-bold text-slate-900">
+                      ¥{adminBookings
+                        .filter((b) => b.date?.startsWith(selectedYear) && b.status !== 'cancelled')
+                        .reduce((acc, b) => acc + Number(b.total_price || 0), 0)
+                        .toLocaleString()}
+                    </span>
+                  </div>
+                  {/* キャンセル損失金額計算 */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                    <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 キャンセル損失金額</span>
+                    <span className="text-2xl md:text-3xl font-bold text-rose-600">
+                      ¥{adminBookings
+                        .filter((b) => b.date?.startsWith(selectedYear) && b.status === 'cancelled')
+                        .reduce((acc, b) => acc + Number(b.total_price || 0), 0)
+                        .toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 月別売上・経費・粗利管理 */}
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <h2 className="font-bold text-slate-900 text-base">月別売上・経費・粗利管理</h2>
+                  <div className="flex items-center space-x-2 text-xs">
+                    <span className="text-slate-500 font-medium">表示月を選択:</span>
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      {['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 売上と各種経費入力 */}
+                {(() => {
+                  const mBookings = adminBookings.filter((b) => b.date?.startsWith(selectedMonth) && b.status !== 'cancelled');
+                  const mSales = mBookings.reduce((acc, b) => acc + Number(b.total_price || 0), 0);
+                  const mExp = expenses[selectedMonth] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
+                  const totalExp = Number(mExp.rent) + Number(mExp.staff) + Number(mExp.drink) + Number(mExp.wifi) + Number(mExp.equipment);
+                  const mProfit = mSales - totalExp;
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                          <span className="text-xs text-slate-500 block mb-1">{selectedMonth} 売上</span>
+                          <span className="text-lg font-bold text-slate-900">¥{mSales.toLocaleString()}</span>
+                        </div>
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                          <span className="text-xs text-slate-500 block mb-1">賃料</span>
+                          <input
+                            type="number"
+                            value={mExp.rent}
+                            onChange={(e) => handleExpenseChange(selectedMonth, 'rent', Number(e.target.value))}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                          />
+                        </div>
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                          <span className="text-xs text-slate-500 block mb-1">人件費</span>
+                          <input
+                            type="number"
+                            value={mExp.staff}
+                            onChange={(e) => handleExpenseChange(selectedMonth, 'staff', Number(e.target.value))}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                          />
+                        </div>
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                          <span className="text-xs text-slate-500 block mb-1">飲料購入費</span>
+                          <input
+                            type="number"
+                            value={mExp.drink}
+                            onChange={(e) => handleExpenseChange(selectedMonth, 'drink', Number(e.target.value))}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                          />
+                        </div>
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                          <span className="text-xs text-slate-500 block mb-1">Wi-Fi購入費 (新規)</span>
+                          <input
+                            type="number"
+                            value={mExp.wifi}
+                            onChange={(e) => handleExpenseChange(selectedMonth, 'wifi', Number(e.target.value))}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                          />
+                        </div>
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                          <span className="text-xs text-slate-500 block mb-1">設備購入費</span>
+                          <input
+                            type="number"
+                            value={mExp.equipment}
+                            onChange={(e) => handleExpenseChange(selectedMonth, 'equipment', Number(e.target.value))}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* 経費合計・月間粗利バー */}
+                      <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm">
+                        <span className="font-bold text-slate-700">経費合計: ¥{totalExp.toLocaleString()}</span>
+                        <span className="font-bold text-slate-900">
+                          月間 粗利 (利益) : <span className="text-emerald-700 text-lg md:text-xl">¥{mProfit.toLocaleString()}</span>
+                        </span>
+                      </div>
+
+                      {/* 選択月の予約一覧テーブル */}
+                      <div className="overflow-x-auto pt-2">
+                        <table className="w-full text-left text-xs md:text-sm border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
+                              <th className="p-3">予約日</th>
+                              <th className="p-3">スペース</th>
+                              <th className="p-3">お名前</th>
+                              <th className="p-3">メールアドレス</th>
+                              <th className="p-3">時間</th>
+                              <th className="p-3">ステータス</th>
+                              <th className="p-3 text-right">金額</th>
+                              <th className="p-3 text-center">操作</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {adminBookings.filter((b) => b.date?.startsWith(selectedMonth)).length === 0 ? (
+                              <tr>
+                                <td colSpan={8} className="p-6 text-center text-slate-400">該当する月の予約はありません。</td>
+                              </tr>
+                            ) : (
+                              adminBookings.filter((b) => b.date?.startsWith(selectedMonth)).map((b) => (
+                                <tr key={b.id} className="hover:bg-slate-50 transition">
+                                  <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{b.date}</td>
+                                  <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
+                                  <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{b.name} 様</td>
+                                  <td className="p-3 text-slate-600 font-mono text-xs">{b.email}</td>
+                                  <td className="p-3 text-slate-700 whitespace-nowrap">{b.start_time} - {b.end_time}</td>
+                                  <td className="p-3 whitespace-nowrap">
+                                    {b.status === 'cancelled' ? (
+                                      <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded font-bold">キャンセル</span>
+                                    ) : (
+                                      <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">有効</span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">¥{Number(b.total_price || 0).toLocaleString()}</td>
+                                  <td className="p-3 text-center whitespace-nowrap">
+                                    <button
+                                      onClick={() => handleOpenEditModal(b)}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition"
+                                    >
+                                      編集
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                        <div className="bg-slate-50 border-t border-slate-200 p-3 text-right text-xs font-bold text-slate-700">
+                          【 {selectedMonth} 合計 】 有効: {mBookings.length}件 / 売上: ¥{mSales.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* 利用者別 利用実績・売上集計 */}
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-3">
+                <h3 className="font-bold text-slate-900 text-base">利用者別 利用実績・売上集計</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs md:text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
+                        <th className="p-3">お名前</th>
+                        <th className="p-3">メールアドレス</th>
+                        <th className="p-3">利用回数</th>
+                        <th className="p-3 text-right">総利用金額</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {Array.from(new Set(adminBookings.filter((b) => b.status !== 'cancelled').map((b) => b.email))).map((userEmail) => {
+                        const userBookingsList = adminBookings.filter((b) => b.email === userEmail && b.status !== 'cancelled');
+                        const user = userBookingsList[0];
+                        const totalSpent = userBookingsList.reduce((acc, b) => acc + Number(b.total_price || 0), 0);
+                        return (
+                          <tr key={userEmail} className="hover:bg-slate-50 transition">
+                            <td className="p-3 font-bold text-slate-900">{user?.name} 様</td>
+                            <td className="p-3 text-slate-600 font-mono">{userEmail}</td>
+                            <td className="p-3 text-slate-700">{userBookingsList.length}回</td>
+                            <td className="p-3 text-right font-bold text-emerald-700">¥{totalSpent.toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           )}
         </main>
       ) : (
         /* 通常のユーザー用表示 */
         <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-          {/* メインヒーローカード */}
           <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
             <div className="mb-3">
               <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold">
@@ -650,51 +873,29 @@ export default function V3RentalSpacePage() {
             </div>
           </div>
 
-          {/* 設備・備品・サービス */}
           <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
             <h2 className="text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">
               設備・備品・サービス
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
                 <span className="text-2xl mb-1">🚪</span>
                 <span className="text-xs md:text-sm font-medium text-slate-700">個室 (壁・扉あり)</span>
               </div>
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
                 <span className="text-2xl mb-1">🚻</span>
                 <span className="text-xs md:text-sm font-medium text-slate-700">トイレ</span>
               </div>
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
                 <span className="text-2xl mb-1">🔌</span>
                 <span className="text-xs md:text-sm font-medium text-slate-700">電源</span>
               </div>
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
                 <span className="text-2xl mb-1">❄️</span>
                 <span className="text-xs md:text-sm font-medium text-slate-700">エアコン (冷暖房)</span>
               </div>
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-                <span className="text-2xl mb-1">🍳</span>
-                <span className="text-xs md:text-sm font-medium text-slate-700">キッチン設備</span>
-              </div>
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-                <span className="text-2xl mb-1">🍴</span>
-                <span className="text-xs md:text-sm font-medium text-slate-700">飲食可</span>
-              </div>
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-                <span className="text-2xl mb-1">🍷</span>
-                <span className="text-xs md:text-sm font-medium text-slate-700">飲酒可</span>
-              </div>
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-                <span className="text-2xl mb-1">✨</span>
-                <span className="text-xs md:text-sm font-medium text-slate-700">片付けおまかせ</span>
-              </div>
-              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-                <span className="text-2xl mb-1">🗑️</span>
-                <span className="text-xs md:text-sm font-medium text-slate-700">ゴミ処理おまかせ</span>
-              </div>
             </div>
 
-            {/* 各種確認ボタン */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 pt-4 border-t border-slate-100">
               <button 
                 onClick={() => setActiveModal('kiyaku')}
@@ -722,7 +923,6 @@ export default function V3RentalSpacePage() {
             </div>
           </div>
 
-          {/* 利用料金プラン */}
           <div className="bg-amber-50/60 rounded-2xl p-4 md:p-6 shadow-sm border border-amber-200/60">
             <h2 className="text-lg font-bold text-slate-900 mb-3">利用料金プラン</h2>
             <ul className="space-y-1.5 text-sm md:text-base text-slate-700">
@@ -731,7 +931,6 @@ export default function V3RentalSpacePage() {
             </ul>
           </div>
 
-          {/* 予約空き状況 */}
           <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <h2 className="text-lg font-bold text-slate-900">予約空き状況（最大1ヶ月先まで）</h2>
@@ -740,9 +939,7 @@ export default function V3RentalSpacePage() {
                   onClick={handlePrevWeek}
                   disabled={weekOffset === 0}
                   className={`border px-3 py-1 rounded-lg text-xs md:text-sm transition ${
-                    weekOffset === 0 
-                      ? 'border-slate-200 text-slate-300 cursor-not-allowed' 
-                      : 'border-slate-300 hover:bg-slate-50 text-slate-600'
+                    weekOffset === 0 ? 'border-slate-200 text-slate-300 cursor-not-allowed' : 'border-slate-300 hover:bg-slate-50 text-slate-600'
                   }`}
                 >
                   &lt; 前の週
@@ -751,9 +948,7 @@ export default function V3RentalSpacePage() {
                   onClick={handleNextWeek}
                   disabled={weekOffset >= 2}
                   className={`border px-3 py-1 rounded-lg text-xs md:text-sm transition ${
-                    weekOffset >= 2 
-                      ? 'border-slate-200 text-slate-300 cursor-not-allowed' 
-                      : 'border-slate-300 hover:bg-slate-50 text-slate-600'
+                    weekOffset >= 2 ? 'border-slate-200 text-slate-300 cursor-not-allowed' : 'border-slate-300 hover:bg-slate-50 text-slate-600'
                   }`}
                 >
                   次の週 &gt;
@@ -761,7 +956,6 @@ export default function V3RentalSpacePage() {
               </div>
             </div>
 
-            {/* カレンダー グリッド */}
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
               {calendarDays.map((item, idx) => (
                 <div key={idx} className="border border-emerald-200 bg-emerald-50/30 rounded-xl p-2.5 text-center flex flex-col justify-between hover:bg-emerald-50/60 transition">
@@ -774,38 +968,6 @@ export default function V3RentalSpacePage() {
                   </button>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* アクセス・所在地 */}
-          <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 mb-3">アクセス・所在地</h2>
-            <p className="text-xs md:text-sm text-slate-700 mb-4 flex items-center gap-1.5">
-              <span className="text-rose-500">📍</span>
-              <span>〒570-0012 大阪府守口市金田町2-1-9 COCOKARA</span>
-            </p>
-            
-            <div className="rounded-xl overflow-hidden border border-slate-200 relative h-64 bg-slate-100">
-              <div className="absolute top-3 left-3 z-10">
-                <a 
-                  href="https://www.google.com/maps/search/?api=1&query=%E3%83%AF%E3%83%B3%E3%82%B0%E3%83%A9%E3%83%B3%E3%83%89+%E5%A4%A7%E9%98%AA%E府%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="bg-white text-emerald-700 hover:bg-slate-50 border border-slate-200 shadow-sm text-xs font-bold py-1.5 px-3 rounded-lg flex items-center space-x-1 transition"
-                >
-                  <span>マップで開く</span>
-                  <span>↗</span>
-                </a>
-              </div>
-              <iframe
-                title="COCOKARA Map"
-                src="https://maps.google.com/maps?q=%E5%A4%A7%E9%98%AA%E府%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9&t=&z=16&ie=UTF8&iwloc=&output=embed"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen={false}
-                loading="lazy"
-              ></iframe>
             </div>
           </div>
         </main>
@@ -886,7 +1048,6 @@ export default function V3RentalSpacePage() {
             </div>
 
             <form onSubmit={handleSaveEdit} className="space-y-4 text-sm">
-              {/* 予約日 */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">予約日</label>
                 <input
@@ -898,7 +1059,6 @@ export default function V3RentalSpacePage() {
                 />
               </div>
 
-              {/* スペース */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">スペース</label>
                 <input
@@ -910,7 +1070,6 @@ export default function V3RentalSpacePage() {
                 />
               </div>
 
-              {/* お名前 */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">お名前</label>
                 <input
@@ -922,7 +1081,6 @@ export default function V3RentalSpacePage() {
                 />
               </div>
 
-              {/* メールアドレス */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">メールアドレス</label>
                 <input
@@ -934,7 +1092,6 @@ export default function V3RentalSpacePage() {
                 />
               </div>
 
-              {/* 時間（開始・終了） */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">開始時間</label>
@@ -958,7 +1115,6 @@ export default function V3RentalSpacePage() {
                 </div>
               </div>
 
-              {/* ステータス / 確認 */}
               <div className="grid grid-cols-2 gap-3 items-center">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">ステータス</label>
@@ -984,7 +1140,6 @@ export default function V3RentalSpacePage() {
                 </div>
               </div>
 
-              {/* 金額 */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">金額 (円)</label>
                 <input
@@ -996,7 +1151,6 @@ export default function V3RentalSpacePage() {
                 />
               </div>
 
-              {/* 保存ボタン */}
               <div className="pt-3 flex space-x-2">
                 <button
                   type="button"
@@ -1035,7 +1189,6 @@ export default function V3RentalSpacePage() {
               </button>
             </div>
 
-            {/* 検索フォーム */}
             <form onSubmit={handleSearchBookings} className="space-y-3 mb-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1061,14 +1214,12 @@ export default function V3RentalSpacePage() {
               </div>
             </form>
 
-            {/* 検索メッセージ */}
             {searchMessage && (
               <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg mb-4">
                 {searchMessage}
               </div>
             )}
 
-            {/* 検索結果リスト */}
             {userBookings.length > 0 && (
               <div className="space-y-3 overflow-y-auto max-h-60 pr-1">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">検索結果 ({userBookings.length}件)</h4>
@@ -1081,13 +1232,9 @@ export default function V3RentalSpacePage() {
                       </div>
                       <div>
                         {b.status === 'cancelled' ? (
-                          <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-semibold">
-                            キャンセル済み
-                          </span>
+                          <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-semibold">キャンセル済み</span>
                         ) : (
-                          <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-semibold">
-                            予約確定
-                          </span>
+                          <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-semibold">予約確定</span>
                         )}
                       </div>
                     </div>
@@ -1120,7 +1267,7 @@ export default function V3RentalSpacePage() {
         </div>
       )}
 
-      {/* 各種確認モーダル（利用規約 / ハウスルール） */}
+      {/* 利用規約 / ハウスルール モーダル */}
       {activeModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-xl border border-slate-100 flex flex-col">
@@ -1147,9 +1294,7 @@ export default function V3RentalSpacePage() {
               </button>
             </div>
 
-            {/* モーダル本文 */}
             <div className="text-sm text-slate-700 space-y-4 leading-relaxed overflow-y-auto pr-2">
-              {/* 利用規約 */}
               {activeModal === 'kiyaku' && (
                 <>
                   <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -1157,36 +1302,11 @@ export default function V3RentalSpacePage() {
                     <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
                       <li>室内に設置されたポーカー天板等の備品は、利用者自身の責任において設置・使用・収納を行うものとします。</li>
                       <li>天板の設置および収納作業は、怪我や事故防止のため、必ず大人2人以上で行ってください。</li>
-                      <li>利用者の不注意 (単独作業による落下、無理な取扱等) により生じた人的被害・怪我について、当スペースは一切の責任を負いません。</li>
-                    </ol>
-                  </section>
-
-                  <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <h4 className="font-bold text-slate-900 mb-2">第2条 (損害賠償および原状回復)</h4>
-                    <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
-                      <li>備品の落下や誤った使用により、壁、床、備品等を破損・汚損した場合、修繕費用および営業補償代金を請求いたします。</li>
-                      <li>利用後は必ずポーカー天板を取り外し、指定の位置に収納した上で退室してください (原状回復の徹底)。退室時に原状回復がなされていない場合、緊急対応費として5,000円を申し受ける場合があります。</li>
-                    </ol>
-                  </section>
-
-                  <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <h4 className="font-bold text-slate-900 mb-2">第3条 (賭博行為の禁止)</h4>
-                    <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
-                      <li>当スペース内での金銭、物品、その他財産上の利益を賭けた賭博行為は一切禁止いたします。万が一発覚した場合は即座に通報し、今後の利用を永久に停止します。</li>
-                    </ol>
-                  </section>
-
-                  <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <h4 className="font-bold text-slate-900 mb-2">第4条 (防犯カメラの設置および映像の取り扱い)</h4>
-                    <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
-                      <li>防犯および安全管理上の理由から、スペース内 (※プライバシーに配慮した範囲) に防犯カメラを設置し、常時撮影・録画を行っています。利用者はこれに同意するものとします。</li>
-                      <li>当スペース内でトラブル、事故、法令違反行為、その他緊急事態が発生した場合、または警察等捜査機関から法令に基づく任意の開示・提出要請を受けた場合、保存している録画映像を警察等の公的機関へ任意に提出することがあります。</li>
                     </ol>
                   </section>
                 </>
               )}
 
-              {/* ハウスルール */}
               {activeModal === 'house' && (
                 <div className="space-y-3">
                   <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
@@ -1194,85 +1314,14 @@ export default function V3RentalSpacePage() {
                     <div className="font-bold text-slate-900 mb-1">騒音注意</div>
                     <p className="text-xs md:text-sm text-slate-600">近隣住民のご迷惑になりますので、出入りの際に静かに入店・退室してください。</p>
                   </div>
-
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 02</div>
-                    <div className="font-bold text-slate-900 mb-1">喫煙ルール</div>
-                    <p className="text-xs md:text-sm text-slate-600">紙巻きタバコは必ず指定の場所での喫煙お願いいたします。</p>
-                  </div>
-
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 03</div>
-                    <div className="font-bold text-slate-900 mb-1">飲食可能</div>
-                    <p className="text-xs md:text-sm text-slate-600">持ち込みは自由です。ポーカー台や機器を汚さないようご注意ください。汚損および破損された場合は、交換費用・清掃費用を実費請求する場合がございます。</p>
-                  </div>
-
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 04</div>
-                    <div className="font-bold text-slate-900 mb-1">退室時の片付け</div>
-                    <p className="text-xs md:text-sm text-slate-600">ご利用後はポーカーチップやカード、備品をもとの位置へお戻しください。</p>
-                  </div>
-
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 05</div>
-                    <div className="font-bold text-slate-900 mb-1">ゴミ処理</div>
-                    <p className="text-xs md:text-sm text-slate-600">ゴミは指定のゴミ箱へ分別して捨てていただくか、お持ち帰りをお願いします。</p>
-                  </div>
-
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 06</div>
-                    <div className="font-bold text-slate-900 mb-1">時間厳守</div>
-                    <p className="text-xs md:text-sm text-slate-600">準備・片付けを含めた時間枠でのご予約となります。退室時は厳守してください。</p>
-                  </div>
-
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 07</div>
-                    <div className="font-bold text-slate-900 mb-1">賭博行為の禁止</div>
-                    <p className="text-xs md:text-sm text-slate-600">現金や金品を賭けた賭博行為は固く禁止いたします。</p>
-                  </div>
-
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 08</div>
-                    <div className="font-bold text-slate-900 mb-1">防犯カメラ</div>
-                    <p className="text-xs md:text-sm text-slate-600">防犯およびトラブル防止のため、室内に監視カメラを設置・録画をしております。また、警察等から任意での提出を求められた場合、提出することがあります。</p>
-                  </div>
-
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 09</div>
-                    <div className="font-bold text-slate-900 mb-1">違法駐車</div>
-                    <p className="text-xs md:text-sm text-slate-600">店舗前や付近の道路への路上駐車、および近隣店舗・民家の敷地・駐車場への無断駐車は固くお断りします。</p>
-                  </div>
                 </div>
               )}
             </div>
 
-            {/* モーダル下部（PDFリンク・閉じるボタン） */}
-            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 sticky bottom-0 bg-white">
-              {activeModal === 'kiyaku' && (
-                <a 
-                  href="/kiyaku2026.pdf" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1"
-                >
-                  <span>📄 PDFで表示・ダウンロード</span>
-                  <span>↗</span>
-                </a>
-              )}
-              {activeModal === 'house' && (
-                <a 
-                  href="/hausururu2026_COCOKARA.pdf" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1"
-                >
-                  <span>📄 PDFで表示・ダウンロード</span>
-                  <span>↗</span>
-                </a>
-              )}
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end sticky bottom-0 bg-white">
               <button
                 onClick={() => setActiveModal(null)}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-6 rounded-xl text-sm transition ml-auto"
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-6 rounded-xl text-sm transition"
               >
                 閉じる
               </button>
@@ -1300,14 +1349,12 @@ export default function V3RentalSpacePage() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* エラーメッセージ表示 */}
                   {errorMessage && (
                     <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-lg text-xs font-semibold">
                       {errorMessage}
                     </div>
                   )}
 
-                  {/* お名前 */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       代表者名 <span className="text-rose-500">*</span>
@@ -1322,7 +1369,6 @@ export default function V3RentalSpacePage() {
                     />
                   </div>
 
-                  {/* メールアドレス */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       メールアドレス <span className="text-rose-500">*</span>
@@ -1337,11 +1383,8 @@ export default function V3RentalSpacePage() {
                     />
                   </div>
 
-                  {/* 電話番号（任意） */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      電話番号
-                    </label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">電話番号</label>
                     <input
                       type="tel"
                       placeholder="090-0000-0000"
@@ -1351,7 +1394,6 @@ export default function V3RentalSpacePage() {
                     />
                   </div>
 
-                  {/* 利用時間選択 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">開始時間</label>
@@ -1379,11 +1421,8 @@ export default function V3RentalSpacePage() {
                     </div>
                   </div>
 
-                  {/* クーポンコード */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      クーポンコード（お持ちの方）
-                    </label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">クーポンコード（お持ちの方）</label>
                     <input
                       type="text"
                       placeholder="例: 0505"
@@ -1393,11 +1432,8 @@ export default function V3RentalSpacePage() {
                     />
                   </div>
 
-                  {/* 備考・ご要望 */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      備考・ご要望
-                    </label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">備考・ご要望</label>
                     <textarea
                       rows={2}
                       placeholder="ご質問や事前のご要望等があればご入力ください"
@@ -1407,25 +1443,17 @@ export default function V3RentalSpacePage() {
                     ></textarea>
                   </div>
 
-                  {/* 料金リアルタイム計算枠 */}
                   <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-1 text-sm">
                     <div className="flex justify-between text-slate-600">
                       <span>ご利用予定時間:</span>
                       <span className="font-medium text-slate-800">{hours} 時間</span>
                     </div>
-                    {isCouponApplied && (
-                      <div className="flex justify-between text-emerald-600 font-medium">
-                        <span>特別クーポン (0505) 適用:</span>
-                        <span>延長料金サービス (6時間料金適用)</span>
-                      </div>
-                    )}
                     <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
                       <span>お支払合計金額:</span>
                       <span className="text-emerald-700 text-lg">¥{price.toLocaleString()}</span>
                     </div>
                   </div>
 
-                  {/* 予約確定ボタン */}
                   <div>
                     <button
                       type="submit"
@@ -1438,7 +1466,6 @@ export default function V3RentalSpacePage() {
                 </form>
               </>
             ) : (
-              /* 完了表示 */
               <div className="text-center py-6 space-y-4">
                 <div className="text-5xl">🎉</div>
                 <h3 className="text-xl font-bold text-slate-900">ご予約を受け付けました</h3>
