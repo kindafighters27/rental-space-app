@@ -37,7 +37,7 @@ export default function V3RentalSpacePage() {
   const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'valid' | 'cancelled'>('all');
   const [adminViewMode, setAdminViewMode] = useState<'bookings' | 'customers' | 'sales'>('bookings');
 
-  // 売上管理用の状態
+  // 売上管理用の状態（Supabaseのexpensesテーブルと連動）
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedMonth, setSelectedMonth] = useState('2026-10');
   const [expenses, setExpenses] = useState<{ [key: string]: { rent: number; staff: number; drink: number; wifi: number; equipment: number } }>({
@@ -69,9 +69,10 @@ export default function V3RentalSpacePage() {
   // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
   const [weekOffset, setWeekOffset] = useState(0);
 
-  // 初回マウント時に全予約を取得（重複チェック・カレンダー用）
+  // 初回マウント時に全予約および経費データを取得
   useEffect(() => {
     fetchAllBookingsForCheck();
+    fetchExpensesFromSupabase();
   }, []);
 
   const fetchAllBookingsForCheck = async () => {
@@ -84,6 +85,29 @@ export default function V3RentalSpacePage() {
       }
     } catch (err) {
       console.error('予約データ取得エラー:', err);
+    }
+  };
+
+  const fetchExpensesFromSupabase = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*');
+      if (!error && data) {
+        const expMap: { [key: string]: { rent: number; staff: number; drink: number; wifi: number; equipment: number } } = {};
+        data.forEach((row: any) => {
+          expMap[row.month] = {
+            rent: Number(row.rent || 0),
+            staff: Number(row.staff || 0),
+            drink: Number(row.drink || 0),
+            wifi: Number(row.wifi || 0),
+            equipment: Number(row.equipment || 0)
+          };
+        });
+        setExpenses((prev) => ({ ...prev, ...expMap }));
+      }
+    } catch (err) {
+      console.warn('経費データ取得エラー（expensesテーブル未作成の場合はローカル状態を保持します）:', err);
     }
   };
 
@@ -463,15 +487,33 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 経費入力変更ハンドラー
-  const handleExpenseChange = (month: string, field: string, val: number) => {
+  // 経費入力変更ハンドラー（Supabaseのexpensesテーブルにも自動保存）
+  const handleExpenseChange = async (month: string, field: string, val: number) => {
+    const currentExp = expenses[month] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
+    const updatedMonthExp = { ...currentExp, [field]: val };
+
     setExpenses((prev) => ({
       ...prev,
-      [month]: {
-        ...(prev[month] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 }),
-        [field]: val
-      }
+      [month]: updatedMonthExp
     }));
+
+    try {
+      await supabase
+        .from('expenses')
+        .upsert(
+          {
+            month: month,
+            rent: updatedMonthExp.rent,
+            staff: updatedMonthExp.staff,
+            drink: updatedMonthExp.drink,
+            wifi: updatedMonthExp.wifi,
+            equipment: updatedMonthExp.equipment
+          },
+          { onConflict: 'month' }
+        );
+    } catch (err) {
+      console.warn('Supabaseへの経費保存に失敗しました（expensesテーブルをご確認ください）:', err);
+    }
   };
 
   // 柔軟な日付・年・月マッチング関数
