@@ -13,6 +13,9 @@ export default function V3RentalSpacePage() {
   const [coupon, setCoupon] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  // 利用規約モーダルの状態管理
+  const [isKiyakuOpen, setIsKiyakuOpen] = useState(false);
+
   // 時間計算と料金計算 (基本: 1~6時間 ¥12,000, 6時間超え 1時間につき +¥2,000)
   const calculatePrice = () => {
     const startHour = parseInt(startTime.split(':')[0], 10);
@@ -138,7 +141,10 @@ export default function V3RentalSpacePage() {
 
           {/* 各種確認ボタン */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 pt-4 border-t border-slate-100">
-            <button className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition">
+            <button 
+              onClick={() => setIsKiyakuOpen(true)}
+              className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition"
+            >
               <span>📜</span>
               <span>利用規約を確認する</span>
             </button>
@@ -239,6 +245,78 @@ export default function V3RentalSpacePage() {
           </div>
         </div>
       </main>
+
+      {/* 利用規約表示モーダル */}
+      {isKiyakuOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-xl border border-slate-100 flex flex-col">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>📜</span>
+                <span>COCOKARA 利用規約</span>
+              </h3>
+              <button 
+                onClick={() => setIsKiyakuOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="text-sm text-slate-700 space-y-4 leading-relaxed overflow-y-auto pr-2">
+              <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h4 className="font-bold text-slate-900 mb-2">第1条 (貸出備品の取り扱いおよび安全管理)</h4>
+                <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
+                  <li>室内に設置されたポーカー天板等の備品は、利用者自身の責任において設置・使用・収納を行うものとします。</li>
+                  <li>天板の設置および収納作業は、怪我や事故防止のため、必ず大人2人以上で行ってください。</li>
+                  <li>利用者の不注意 (単独作業による落下、無理な取扱等) により生じた人的被害・怪我について、当スペースは一切の責任を負いません。</li>
+                </ol>
+              </section>
+
+              <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h4 className="font-bold text-slate-900 mb-2">第2条 (損害賠償および原状回復)</h4>
+                <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
+                  <li>備品の落下や誤った使用により、壁、床、備品等を破損・汚損した場合、修繕費用および営業補償代金を請求いたします。</li>
+                  <li>利用後は必ずポーカー天板を取り外し、指定の位置に収納した上で退室してください (原状回復の徹底)。退室時に原状回復がなされていない場合、緊急対応費として5,000円を申し受ける場合があります。</li>
+                </ol>
+              </section>
+
+              <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h4 className="font-bold text-slate-900 mb-2">第3条 (賭博行為の禁止)</h4>
+                <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
+                  <li>当スペース内での金銭、物品、その他財産上の利益を賭けた賭博行為は一切禁止いたします。万が一発覚した場合は即座に通報し、今後の利用を永久に停止します。</li>
+                </ol>
+              </section>
+
+              <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h4 className="font-bold text-slate-900 mb-2">第4条 (防犯カメラの設置および映像の取り扱い)</h4>
+                <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
+                  <li>防犯および安全管理上の理由から、スペース内 (※プライバシーに配慮した範囲) に防犯カメラを設置し、常時撮影・録画を行っています。利用者はこれに同意するものとします。</li>
+                  <li>当スペース内でトラブル、事故、法令違反行為、その他緊急事態が発生した場合、または警察等捜査機関から法令に基づく任意の開示・提出要請を受けた場合、保存している録画映像を警察等の公的機関へ任意に提出することがあります。</li>
+                </ol>
+              </section>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <a 
+                href="/kiyaku2026.pdf" 
+                target="_blank" 
+                rel="noreferrer"
+                className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1"
+              >
+                <span>📄 PDFで表示・ダウンロード</span>
+                <span>↗</span>
+              </a>
+              <button
+                onClick={() => setIsKiyakuOpen(false)}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-6 rounded-xl text-sm transition"
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 予約入力モーダル */}
       {isBookingOpen && (
