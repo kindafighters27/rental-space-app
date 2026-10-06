@@ -41,21 +41,29 @@ export default function V3RentalSpacePage() {
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedMonth, setSelectedMonth] = useState('2026-10');
   const [expenses, setExpenses] = useState<{ [key: string]: { rent: number; staff: number; drink: number; wifi: number; equipment: number } }>({
+    '2026-09': { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 },
     '2026-10': { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 }
   });
 
-  // 管理者用 予約編集モーダルの状態管理
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingBooking, setEditingBooking] = useState<any | null>(null);
-  const [editDate, setEditDate] = useState('');
-  const [editName, setEditName] = useState('');
-  const [editSpace, setEditSpace] = useState('COCOKARA メインルーム');
-  const [editEmail, setEditEmail] = useState('');
-  const [editStartTime, setEditStartTime] = useState('13:00');
-  const [editEndTime, setEditEndTime] = useState('19:00');
-  const [editStatus, setEditStatus] = useState('confirmed');
-  const [editConfirmed, setEditConfirmed] = useState(false);
-  const [editTotalPrice, setEditTotalPrice] = useState(12000);
+  // 管理者用 インライン直接編集の状態管理（行IDごとに管理）
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editRowData, setEditRowData] = useState<{
+    date: string;
+    name: string;
+    email: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    total_price: number;
+  }>({
+    date: '',
+    name: '',
+    email: '',
+    start_time: '',
+    end_time: '',
+    status: 'confirmed',
+    total_price: 12000
+  });
   const [isUpdating, setIsUpdating] = useState(false);
 
   // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
@@ -297,48 +305,44 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 管理者用 編集モーダルを開く
-  const handleOpenEditModal = (b: any) => {
-    setEditingBooking(b);
-    setEditDate(b.date || '');
-    setEditName(b.name || '');
-    setEditSpace(b.notes?.includes('スペース:') ? b.notes.split('スペース:')[1]?.split('|')[0]?.trim() : 'COCOKARA メインルーム');
-    setEditEmail(b.email || '');
-    setEditStartTime(b.start_time || '13:00');
-    setEditEndTime(b.end_time || '19:00');
-    setEditStatus(b.status || 'confirmed');
-    setEditConfirmed(b.notes === '確認済' || b.notes?.includes('確認済'));
-    setEditTotalPrice(b.total_price || 12000);
-    setIsEditModalOpen(true);
+  // インライン編集を開始する
+  const handleStartInlineEdit = (b: any) => {
+    setEditingRowId(b.id);
+    setEditRowData({
+      date: b.date || '',
+      name: b.name || '',
+      email: b.email || '',
+      start_time: b.start_time || '13:00',
+      end_time: b.end_time || '19:00',
+      status: b.status || 'confirmed',
+      total_price: b.total_price || 12000
+    });
   };
 
-  // 管理者用 編集内容の保存処理
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingBooking) return;
-
+  // インライン編集を保存する
+  const handleSaveInlineEdit = async (id: string) => {
     setIsUpdating(true);
     try {
-      const updatedNotes = editConfirmed ? '確認済' : null;
       const { error } = await supabase
         .from('poker_bookings')
         .update({
-          date: editDate,
-          name: editName,
-          email: editEmail,
-          start_time: editStartTime,
-          end_time: editEndTime,
-          status: editStatus,
-          notes: updatedNotes,
-          total_price: Number(editTotalPrice)
+          date: editRowData.date,
+          name: editRowData.name,
+          email: editRowData.email,
+          start_time: editRowData.start_time,
+          end_time: editRowData.end_time,
+          status: editRowData.status,
+          total_price: Number(editRowData.total_price)
         })
-        .eq('id', editingBooking.id);
+        .eq('id', id);
 
       if (error) throw error;
 
-      alert('予約情報の更新しました。');
-      setIsEditModalOpen(false);
-      fetchAdminBookings();
+      setAdminBookings((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, ...editRowData } : b))
+      );
+      setEditingRowId(null);
+      alert('予約情報を直接更新しました。');
     } catch (err: unknown) {
       alert('更新に失敗しました。');
     } finally {
@@ -357,28 +361,44 @@ export default function V3RentalSpacePage() {
     }));
   };
 
-  // 柔軟な日付・年・月マッチング関数（Supabaseの「10-7 (水)」や「2026-10-07」等に対応）
+  // 柔軟な日付・年・月マッチング関数
+  const parseMonthAndYearFromDate = (dateStr: string) => {
+    if (!dateStr) return { year: '2026', month: '10', yearMonth: '2026-10' };
+    
+    let m = '10';
+    let y = '2026';
+
+    if (dateStr.includes('2026')) y = '2026';
+    else if (dateStr.includes('2027')) y = '2027';
+    else if (dateStr.includes('2028')) y = '2028';
+
+    if (dateStr.startsWith('9-') || dateStr.includes('-9-') || dateStr.includes('/9/')) m = '09';
+    else if (dateStr.startsWith('10-') || dateStr.includes('-10-') || dateStr.includes('/10/')) m = '10';
+    else if (dateStr.startsWith('11-') || dateStr.includes('-11-') || dateStr.includes('/11/')) m = '11';
+    else if (dateStr.startsWith('12-') || dateStr.includes('-12-') || dateStr.includes('/12/')) m = '12';
+    else if (dateStr.startsWith('1-') || dateStr.includes('-01-') || dateStr.includes('/1/')) m = '01';
+    else if (dateStr.startsWith('2-') || dateStr.includes('-02-') || dateStr.includes('/2/')) m = '02';
+    else if (dateStr.startsWith('3-') || dateStr.includes('-03-') || dateStr.includes('/3/')) m = '03';
+    else if (dateStr.startsWith('4-') || dateStr.includes('-04-') || dateStr.includes('/4/')) m = '04';
+    else if (dateStr.startsWith('5-') || dateStr.includes('-05-') || dateStr.includes('/5/')) m = '05';
+    else if (dateStr.startsWith('6-') || dateStr.includes('-06-') || dateStr.includes('/6/')) m = '06';
+    else if (dateStr.startsWith('7-') || dateStr.includes('-07-') || dateStr.includes('/7/')) m = '07';
+    else if (dateStr.startsWith('8-') || dateStr.includes('-08-') || dateStr.includes('/8/')) m = '08';
+
+    const formattedMonth = m.length === 1 ? `0${m}` : m;
+    return { year: y, month: formattedMonth, yearMonth: `${y}-${formattedMonth}` };
+  };
+
   const matchYear = (dateStr: string, year: string) => {
     if (!dateStr) return false;
-    if (dateStr.includes(year)) return true;
-    // 「10-7 (水)」のような形式の場合、現在選択中の年（例: 2026）に属するとみなす
-    if (!dateStr.includes('-') && !dateStr.includes('/')) return false;
-    return true; // デフォルトで当年のものとして扱う
+    const parsed = parseMonthAndYearFromDate(dateStr);
+    return parsed.year === year;
   };
 
   const matchMonth = (dateStr: string, monthStr: string) => {
     if (!dateStr) return false;
-    // monthStr は "2026-10" の形式
-    const [targetYear, targetMonth] = monthStr.split('-'); // ["2026", "10"]
-    const monthNum = parseInt(targetMonth, 10); // 10 または 1 等
-
-    if (dateStr.includes(monthStr)) return true;
-    // 「10-7 (水)」や「10-9 (金)」のような形式に対応
-    if (dateStr.startsWith(`${monthNum}-`) || dateStr.startsWith(`0${monthNum}-`) || dateStr.includes(`-${monthNum}-`) || dateStr.includes(`/${monthNum}/`)) {
-      return true;
-    }
-    // もし日付データに月が含まれていない場合やフォーマットが異なる場合は、選択月を強制適用するか部分一致
-    return false;
+    const parsed = parseMonthAndYearFromDate(dateStr);
+    return parsed.yearMonth === monthStr;
   };
 
   // フィルタリング処理（管理者画面）
@@ -574,6 +594,88 @@ export default function V3RentalSpacePage() {
                   ) : (
                     filteredAdminBookings.map((b) => {
                       const isConfirmed = b.notes === '確認済';
+                      const isEditing = editingRowId === b.id;
+
+                      if (isEditing) {
+                        return (
+                          <tr key={b.id} className="bg-amber-50/50 transition">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={editRowData.date}
+                                onChange={(e) => setEditRowData({ ...editRowData, date: e.target.value })}
+                                className="w-28 border border-slate-300 rounded p-1 text-xs bg-white"
+                              />
+                            </td>
+                            <td className="p-2 text-slate-600 text-xs">メインルーム</td>
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={editRowData.name}
+                                onChange={(e) => setEditRowData({ ...editRowData, name: e.target.value })}
+                                className="w-24 border border-slate-300 rounded p-1 text-xs bg-white"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="email"
+                                value={editRowData.email}
+                                onChange={(e) => setEditRowData({ ...editRowData, email: e.target.value })}
+                                className="w-36 border border-slate-300 rounded p-1 text-xs bg-white font-mono"
+                              />
+                            </td>
+                            <td className="p-2 whitespace-nowrap">
+                              <input
+                                type="text"
+                                value={editRowData.start_time}
+                                onChange={(e) => setEditRowData({ ...editRowData, start_time: e.target.value })}
+                                className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
+                              />
+                              -
+                              <input
+                                type="text"
+                                value={editRowData.end_time}
+                                onChange={(e) => setEditRowData({ ...editRowData, end_time: e.target.value })}
+                                className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <select
+                                value={editRowData.status}
+                                onChange={(e) => setEditRowData({ ...editRowData, status: e.target.value })}
+                                className="border border-slate-300 rounded p-1 text-xs bg-white"
+                              >
+                                <option value="confirmed">有効</option>
+                                <option value="cancelled">キャンセル</option>
+                              </select>
+                            </td>
+                            <td className="p-2 text-right">
+                              <input
+                                type="number"
+                                value={editRowData.total_price}
+                                onChange={(e) => setEditRowData({ ...editRowData, total_price: Number(e.target.value) })}
+                                className="w-20 border border-slate-300 rounded p-1 text-xs bg-white text-right"
+                              />
+                            </td>
+                            <td className="p-2 text-center whitespace-nowrap space-x-1">
+                              <button
+                                onClick={() => handleSaveInlineEdit(b.id)}
+                                disabled={isUpdating}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1 rounded transition"
+                              >
+                                {isUpdating ? '保存...' : '保存'}
+                              </button>
+                              <button
+                                onClick={() => setEditingRowId(null)}
+                                className="bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs font-bold px-2 py-1 rounded transition"
+                              >
+                                取消
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      }
+
                       return (
                         <tr key={b.id} className="hover:bg-slate-50/80 transition">
                           <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{b.date}</td>
@@ -604,7 +706,7 @@ export default function V3RentalSpacePage() {
                           </td>
                           <td className="p-3 text-center whitespace-nowrap">
                             <button
-                              onClick={() => handleOpenEditModal(b)}
+                              onClick={() => handleStartInlineEdit(b)}
                               className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition"
                             >
                               編集
@@ -643,7 +745,7 @@ export default function V3RentalSpacePage() {
               </table>
             </div>
           ) : (
-            /* 売上管理画面 (Supabase連携データ完全反映) */
+            /* 売上管理画面 */
             <div className="space-y-6">
               {/* 年間売上サマリー */}
               <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
@@ -814,7 +916,7 @@ export default function V3RentalSpacePage() {
                                   <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">¥{Number(b.total_price || 0).toLocaleString()}</td>
                                   <td className="p-3 text-center whitespace-nowrap">
                                     <button
-                                      onClick={() => handleOpenEditModal(b)}
+                                      onClick={() => handleStartInlineEdit(b)}
                                       className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition"
                                     >
                                       編集
@@ -1043,147 +1145,6 @@ export default function V3RentalSpacePage() {
                   className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
                 >
                   ログイン
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 管理者用 予約編集モーダル */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-100">
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-900">
-                予約情報の編集
-              </h3>
-              <button 
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-sm">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">予約日</label>
-                <input
-                  type="text"
-                  required
-                  value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">スペース</label>
-                <input
-                  type="text"
-                  required
-                  value={editSpace}
-                  onChange={(e) => setEditSpace(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">お名前</label>
-                <input
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">メールアドレス</label>
-                <input
-                  type="email"
-                  required
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">開始時間</label>
-                  <input
-                    type="text"
-                    required
-                    value={editStartTime}
-                    onChange={(e) => setEditStartTime(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">終了時間</label>
-                  <input
-                    type="text"
-                    required
-                    value={editEndTime}
-                    onChange={(e) => setEditEndTime(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 items-center">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">ステータス</label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="confirmed">仮予約 (confirmed)</option>
-                    <option value="cancelled">キャンセル済み</option>
-                  </select>
-                </div>
-                <div className="pt-5">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editConfirmed}
-                      onChange={(e) => setEditConfirmed(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-xs font-bold text-slate-700">確認済みにする</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">金額 (円)</label>
-                <input
-                  type="number"
-                  required
-                  value={editTotalPrice}
-                  onChange={(e) => setEditTotalPrice(Number(e.target.value))}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="pt-3 flex space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-sm transition"
-                >
-                  キャンセル
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdating}
-                  className="w-1/2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-bold py-2.5 rounded-xl text-sm transition shadow-sm"
-                >
-                  {isUpdating ? '保存中...' : '変更を保存'}
                 </button>
               </div>
             </form>
