@@ -819,8 +819,9 @@ export default function V3RentalSpacePage() {
                           </td>
                           <td className="p-3 text-center whitespace-nowrap">
                             <button
+                              type="button"
                               onClick={() => handleStartInlineEdit(b)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition"
+                              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition cursor-pointer"
                             >
                               編集
                             </button>
@@ -1029,8 +1030,9 @@ export default function V3RentalSpacePage() {
                                   <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">¥{Number(b.total_price || 0).toLocaleString()}</td>
                                   <td className="p-3 text-center whitespace-nowrap">
                                     <button
+                                      type="button"
                                       onClick={() => handleStartInlineEdit(b)}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition"
+                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition cursor-pointer"
                                     >
                                       編集
                                     </button>
