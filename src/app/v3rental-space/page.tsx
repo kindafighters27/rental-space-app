@@ -37,6 +37,20 @@ export default function V3RentalSpacePage() {
   const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'valid' | 'cancelled'>('all');
   const [adminViewMode, setAdminViewMode] = useState<'bookings' | 'customers'>('bookings');
 
+  // 管理者用 予約編集モーダルの状態管理
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<any | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editSpace, setEditSpace] = useState('COCOKARA メインルーム');
+  const [editEmail, setEditEmail] = useState('');
+  const [editStartTime, setEditStartTime] = useState('13:00');
+  const [editEndTime, setEditEndTime] = useState('19:00');
+  const [editStatus, setEditStatus] = useState('confirmed');
+  const [editConfirmed, setEditConfirmed] = useState(false);
+  const [editTotalPrice, setEditTotalPrice] = useState(12000);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -265,18 +279,69 @@ export default function V3RentalSpacePage() {
   // 管理者確認チェックボックス切り替え
   const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
     try {
+      const newNotes = currentConfirmed ? null : '確認済';
       const { error } = await supabase
         .from('poker_bookings')
-        .update({ notes: currentConfirmed ? null : '確認済' })
+        .update({ notes: newNotes })
         .eq('id', id);
 
       if (error) throw error;
 
       setAdminBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, notes: currentConfirmed ? null : '確認済' } : b))
+        prev.map((b) => (b.id === id ? { ...b, notes: newNotes } : b))
       );
     } catch (err) {
       console.error('確認ステータス更新エラー:', err);
+    }
+  };
+
+  // 管理者用 編集モーダルを開く
+  const handleOpenEditModal = (b: any) => {
+    setEditingBooking(b);
+    setEditDate(b.date || '');
+    setEditName(b.name || '');
+    // スペース情報はnotesまたはデフォルト値から判定
+    setEditSpace(b.notes?.includes('スペース:') ? b.notes.split('スペース:')[1]?.split('|')[0]?.trim() : 'COCOKARA メインルーム');
+    setEditEmail(b.email || '');
+    setEditStartTime(b.start_time || '13:00');
+    setEditEndTime(b.end_time || '19:00');
+    setEditStatus(b.status || 'confirmed');
+    setEditConfirmed(b.notes === '確認済' || b.notes?.includes('確認済'));
+    setEditTotalPrice(b.total_price || 12000);
+    setIsEditModalOpen(true);
+  };
+
+  // 管理者用 編集内容の保存処理
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBooking) return;
+
+    setIsUpdating(true);
+    try {
+      const updatedNotes = editConfirmed ? '確認済' : null;
+      const { error } = await supabase
+        .from('poker_bookings')
+        .update({
+          date: editDate,
+          name: editName,
+          email: editEmail,
+          start_time: editStartTime,
+          end_time: editEndTime,
+          status: editStatus,
+          notes: updatedNotes,
+          total_price: Number(editTotalPrice)
+        })
+        .eq('id', editingBooking.id);
+
+      if (error) throw error;
+
+      alert('予約情報を更新しました。');
+      setIsEditModalOpen(false);
+      fetchAdminBookings();
+    } catch (err: unknown) {
+      alert('更新に失敗しました。');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -331,7 +396,6 @@ export default function V3RentalSpacePage() {
             <button 
               onClick={() => {
                 if (isAdminLoggedIn) {
-                  // すでにログイン済みならトップへスクロール
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                   setIsAdminAuthModalOpen(true);
@@ -346,7 +410,7 @@ export default function V3RentalSpacePage() {
         </div>
       </header>
 
-      {/* 管理者ログイン済みの表示（画像2枚目を再現） */}
+      {/* 管理者ログイン済みの表示 */}
       {isAdminLoggedIn ? (
         <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
           {/* 上部ヘッダーコントロール */}
@@ -410,7 +474,6 @@ export default function V3RentalSpacePage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm w-full md:w-auto">
-              {/* 検索インプット */}
               <input
                 type="text"
                 placeholder="お名前、メール、スペース名、日付で検索"
@@ -419,7 +482,6 @@ export default function V3RentalSpacePage() {
                 className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
 
-              {/* ステータス切替 */}
               <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg text-xs">
                 <span className="text-slate-500 pl-1 font-medium">ステータス:</span>
                 <button
@@ -522,7 +584,7 @@ export default function V3RentalSpacePage() {
                           </td>
                           <td className="p-3 text-center whitespace-nowrap">
                             <button
-                              onClick={() => alert(`予約ID: ${b.id}\n名前: ${b.name}\n電話: ${b.phone || '未入力'}\n備考: ${b.notes || 'なし'}`)}
+                              onClick={() => handleOpenEditModal(b)}
                               className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition"
                             >
                               編集
@@ -800,6 +862,155 @@ export default function V3RentalSpacePage() {
                   className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
                 >
                   ログイン
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 管理者用 予約編集モーダル */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-100">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">
+                予約情報の編集
+              </h3>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-sm">
+              {/* 予約日 */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">予約日</label>
+                <input
+                  type="text"
+                  required
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* スペース */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">スペース</label>
+                <input
+                  type="text"
+                  required
+                  value={editSpace}
+                  onChange={(e) => setEditSpace(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* お名前 */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">お名前</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* メールアドレス */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">メールアドレス</label>
+                <input
+                  type="email"
+                  required
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* 時間（開始・終了） */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">開始時間</label>
+                  <input
+                    type="text"
+                    required
+                    value={editStartTime}
+                    onChange={(e) => setEditStartTime(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">終了時間</label>
+                  <input
+                    type="text"
+                    required
+                    value={editEndTime}
+                    onChange={(e) => setEditEndTime(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* ステータス / 確認 */}
+              <div className="grid grid-cols-2 gap-3 items-center">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">ステータス</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="confirmed">仮予約 (confirmed)</option>
+                    <option value="cancelled">キャンセル済み</option>
+                  </select>
+                </div>
+                <div className="pt-5">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editConfirmed}
+                      onChange={(e) => setEditConfirmed(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-xs font-bold text-slate-700">確認済みにする</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* 金額 */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">金額 (円)</label>
+                <input
+                  type="number"
+                  required
+                  value={editTotalPrice}
+                  onChange={(e) => setEditTotalPrice(Number(e.target.value))}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* 保存ボタン */}
+              <div className="pt-3 flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-sm transition"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="w-1/2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-bold py-2.5 rounded-xl text-sm transition shadow-sm"
+                >
+                  {isUpdating ? '保存中...' : '変更を保存'}
                 </button>
               </div>
             </form>
