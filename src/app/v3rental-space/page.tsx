@@ -140,7 +140,7 @@ export default function V3RentalSpacePage() {
           </p>
           <div className="overflow-hidden rounded-xl bg-slate-200 aspect-video relative group">
             <img 
-              src="/IMG_7072.jpg" 
+              src="/space2.JPG" 
               alt="COCOKARA 室内 ポーカーテーブル" 
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
