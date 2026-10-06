@@ -15,6 +15,49 @@ export default function V3RentalSpacePage() {
   const [notes, setNotes] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // 動的な日付データ生成関数（今日を基準に14日間分を表示、weekOffsetで週移動）
+  const generateCalendarDays = () => {
+    const days = [];
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    const today = new Date();
+    
+    // 現在の週オフセット(7日単位)をベースにする
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + weekOffset * 7);
+
+    for (let i = 0; i < 14; i++) {
+      const targetDate = new Date(startDate);
+      targetDate.setDate(startDate.getDate() + i);
+
+      const month = targetDate.getMonth() + 1;
+      const date = targetDate.getDate();
+      const dayOfWeek = dayNames[targetDate.getDay()];
+
+      days.push({
+        date: `${month}-${date} (${dayOfWeek})`,
+        status: '空きあり'
+      });
+    }
+    return days;
+  };
+
+  const calendarDays = generateCalendarDays();
+
+  const handleNextWeek = () => {
+    if (weekOffset < 2) { // 最大1ヶ月（約4週間）先まで制限
+      setWeekOffset((prev) => prev + 1);
+    }
+  };
+
+  const handlePrevWeek = () => {
+    if (weekOffset > 0) {
+      setWeekOffset((prev) => prev - 1);
+    }
+  };
+
   // 各種確認モーダルの状態管理 ('kiyaku' | 'house' | 'manual' | null)
   const [activeModal, setActiveModal] = useState<'kiyaku' | 'house' | 'manual' | null>(null);
 
@@ -188,10 +231,26 @@ export default function V3RentalSpacePage() {
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h2 className="text-lg font-bold text-slate-900">予約空き状況（最大1ヶ月先まで）</h2>
             <div className="flex space-x-2">
-              <button className="border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs md:text-sm transition">
+              <button 
+                onClick={handlePrevWeek}
+                disabled={weekOffset === 0}
+                className={`border px-3 py-1 rounded-lg text-xs md:text-sm transition ${
+                  weekOffset === 0 
+                    ? 'border-slate-200 text-slate-300 cursor-not-allowed' 
+                    : 'border-slate-300 hover:bg-slate-50 text-slate-600'
+                }`}
+              >
                 &lt; 前の週
               </button>
-              <button className="border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs md:text-sm transition">
+              <button 
+                onClick={handleNextWeek}
+                disabled={weekOffset >= 2}
+                className={`border px-3 py-1 rounded-lg text-xs md:text-sm transition ${
+                  weekOffset >= 2 
+                    ? 'border-slate-200 text-slate-300 cursor-not-allowed' 
+                    : 'border-slate-300 hover:bg-slate-50 text-slate-600'
+                }`}
+              >
                 次の週 &gt;
               </button>
             </div>
@@ -199,22 +258,7 @@ export default function V3RentalSpacePage() {
 
           {/* カレンダー グリッド */}
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
-            {[
-              { date: '10-6 (火)', status: '空きあり' },
-              { date: '10-7 (水)', status: '空きあり' },
-              { date: '10-8 (木)', status: '空きあり' },
-              { date: '10-9 (金)', status: '空きあり' },
-              { date: '10-10 (土)', status: '空きあり' },
-              { date: '10-11 (日)', status: '空きあり' },
-              { date: '10-12 (月)', status: '空きあり' },
-              { date: '10-13 (火)', status: '空きあり' },
-              { date: '10-14 (水)', status: '空きあり' },
-              { date: '10-15 (木)', status: '空きあり' },
-              { date: '10-16 (金)', status: '空きあり' },
-              { date: '10-17 (土)', status: '空きあり' },
-              { date: '10-18 (日)', status: '空きあり' },
-              { date: '10-19 (月)', status: '空きあり' },
-            ].map((item, idx) => (
+            {calendarDays.map((item, idx) => (
               <div key={idx} className="border border-emerald-200 bg-emerald-50/30 rounded-xl p-2.5 text-center flex flex-col justify-between hover:bg-emerald-50/60 transition">
                 <span className="text-xs font-bold text-slate-700 mb-1.5 block">{item.date}</span>
                 <button
@@ -239,7 +283,7 @@ export default function V3RentalSpacePage() {
           <div className="rounded-xl overflow-hidden border border-slate-200 relative h-64 bg-slate-100">
             <div className="absolute top-3 left-3 z-10">
               <a 
-                href="https://maps.google.com" 
+                href="https://www.google.com/maps/search/?api=1&query=%E3%83%AF%E3%83%B3%E3%82%B0%E3%83%A9%E3%83%B3%E3%83%89+%E5%A4%A7%E9%98%AA%E府%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9" 
                 target="_blank" 
                 rel="noreferrer"
                 className="bg-white text-emerald-700 hover:bg-slate-50 border border-slate-200 shadow-sm text-xs font-bold py-1.5 px-3 rounded-lg flex items-center space-x-1 transition"
@@ -250,7 +294,7 @@ export default function V3RentalSpacePage() {
             </div>
             <iframe
               title="COCOKARA Map"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3278.431200108969!2d135.58047!3d34.75701!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6000e30b0b0b0b0b%3A0x0!2z44CSNTcwLTAwMTIg5aSn6Ziq5p2c44K36YeR54Sw55S6Mi0xLTkgQ09DT0tBUkE!5e0!3m2!1sja!2sjp!4v1600000000000!5m2!1sja!2sjp"
+              src="https://maps.google.com/maps?q=%E5%A4%A7%E9%98%AA%E府%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9&t=&z=16&ie=UTF8&iwloc=&output=embed"
               width="100%"
               height="100%"
               style={{ border: 0 }}
