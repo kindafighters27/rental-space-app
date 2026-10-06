@@ -425,7 +425,7 @@ export default function V3RentalSpacePage() {
     });
   };
 
-  // インライン編集を保存する（Supabaseのテーブルに直接反映）
+  // インライン編集を保存する（Supabase、売上管理、顧客リストの3か所に完全連動反映）
   const handleSaveInlineEdit = async (id: string) => {
     const overlapError = checkTimeOverlap(editRowData.date, editRowData.start_time, editRowData.end_time, id);
     if (overlapError) {
@@ -454,7 +454,7 @@ export default function V3RentalSpacePage() {
         prev.map((b) => (b.id === id ? { ...b, ...editRowData } : b))
       );
       setEditingRowId(null);
-      alert('予約情報を直接更新しました。');
+      alert('予約情報を直接更新しました。売上管理・顧客リスト・Supabaseへ反映されました。');
       fetchAllBookingsForCheck();
     } catch (err: unknown) {
       alert('更新に失敗しました。');
@@ -772,15 +772,17 @@ export default function V3RentalSpacePage() {
                             </td>
                             <td className="p-2 text-center whitespace-nowrap space-x-1">
                               <button
+                                type="button"
                                 onClick={() => handleSaveInlineEdit(b.id)}
                                 disabled={isUpdating}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1 rounded transition"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1 rounded transition cursor-pointer"
                               >
                                 {isUpdating ? '保存...' : '保存'}
                               </button>
                               <button
+                                type="button"
                                 onClick={() => setEditingRowId(null)}
-                                className="bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs font-bold px-2 py-1 rounded transition"
+                                className="bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs font-bold px-2 py-1 rounded transition cursor-pointer"
                               >
                                 取消
                               </button>
@@ -1013,32 +1015,118 @@ export default function V3RentalSpacePage() {
                                 <td colSpan={8} className="p-6 text-center text-slate-400">該当する月の予約はありません。</td>
                               </tr>
                             ) : (
-                              adminBookings.filter((b) => matchMonth(b.date, selectedMonth)).map((b) => (
-                                <tr key={b.id} className="hover:bg-slate-50 transition">
-                                  <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{b.date}</td>
-                                  <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
-                                  <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{b.name} 様</td>
-                                  <td className="p-3 text-slate-600 font-mono text-xs">{b.email}</td>
-                                  <td className="p-3 text-slate-700 whitespace-nowrap">{b.start_time} - {b.end_time}</td>
-                                  <td className="p-3 whitespace-nowrap">
-                                    {b.status === 'cancelled' ? (
-                                      <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded font-bold">キャンセル</span>
-                                    ) : (
-                                      <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">有効</span>
-                                    )}
-                                  </td>
-                                  <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">¥{Number(b.total_price || 0).toLocaleString()}</td>
-                                  <td className="p-3 text-center whitespace-nowrap">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleStartInlineEdit(b)}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition cursor-pointer"
-                                    >
-                                      編集
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))
+                              adminBookings.filter((b) => matchMonth(b.date, selectedMonth)).map((b) => {
+                                const isEditing = editingRowId === b.id;
+
+                                if (isEditing) {
+                                  return (
+                                    <tr key={b.id} className="bg-amber-50/50 transition">
+                                      <td className="p-2">
+                                        <input
+                                          type="text"
+                                          value={editRowData.date}
+                                          onChange={(e) => setEditRowData({ ...editRowData, date: e.target.value })}
+                                          className="w-28 border border-slate-300 rounded p-1 text-xs bg-white"
+                                        />
+                                      </td>
+                                      <td className="p-2 text-slate-600 text-xs">メインルーム</td>
+                                      <td className="p-2">
+                                        <input
+                                          type="text"
+                                          value={editRowData.name}
+                                          onChange={(e) => setEditRowData({ ...editRowData, name: e.target.value })}
+                                          className="w-24 border border-slate-300 rounded p-1 text-xs bg-white"
+                                        />
+                                      </td>
+                                      <td className="p-2">
+                                        <input
+                                          type="email"
+                                          value={editRowData.email}
+                                          onChange={(e) => setEditRowData({ ...editRowData, email: e.target.value })}
+                                          className="w-36 border border-slate-300 rounded p-1 text-xs bg-white font-mono"
+                                        />
+                                      </td>
+                                      <td className="p-2 whitespace-nowrap">
+                                        <input
+                                          type="text"
+                                          value={editRowData.start_time}
+                                          onChange={(e) => setEditRowData({ ...editRowData, start_time: e.target.value })}
+                                          className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
+                                        />
+                                        -
+                                        <input
+                                          type="text"
+                                          value={editRowData.end_time}
+                                          onChange={(e) => setEditRowData({ ...editRowData, end_time: e.target.value })}
+                                          className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
+                                        />
+                                      </td>
+                                      <td className="p-2">
+                                        <select
+                                          value={editRowData.status}
+                                          onChange={(e) => setEditRowData({ ...editRowData, status: e.target.value })}
+                                          className="border border-slate-300 rounded p-1 text-xs bg-white"
+                                        >
+                                          <option value="confirmed">有効</option>
+                                          <option value="cancelled">キャンセル</option>
+                                        </select>
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <input
+                                          type="number"
+                                          value={editRowData.total_price}
+                                          onChange={(e) => setEditRowData({ ...editRowData, total_price: Number(e.target.value) })}
+                                          className="w-20 border border-slate-300 rounded p-1 text-xs bg-white text-right"
+                                        />
+                                      </td>
+                                      <td className="p-2 text-center whitespace-nowrap space-x-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSaveInlineEdit(b.id)}
+                                          disabled={isUpdating}
+                                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1 rounded transition cursor-pointer"
+                                        >
+                                          {isUpdating ? '保存...' : '保存'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingRowId(null)}
+                                          className="bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs font-bold px-2 py-1 rounded transition cursor-pointer"
+                                        >
+                                          取消
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+
+                                return (
+                                  <tr key={b.id} className="hover:bg-slate-50 transition">
+                                    <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{b.date}</td>
+                                    <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
+                                    <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{b.name} 様</td>
+                                    <td className="p-3 text-slate-600 font-mono text-xs">{b.email}</td>
+                                    <td className="p-3 text-slate-700 whitespace-nowrap">{b.start_time} - {b.end_time}</td>
+                                    <td className="p-3 whitespace-nowrap">
+                                      {b.status === 'cancelled' ? (
+                                        <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded font-bold">キャンセル</span>
+                                      ) : (
+                                        <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">有効</span>
+                                      )}
+                                    </td>
+                                    <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">¥{Number(b.total_price || 0).toLocaleString()}</td>
+                                    <td className="p-3 text-center whitespace-nowrap">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartInlineEdit(b)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition cursor-pointer"
+                                      >
+                                        編集
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })
                             )}
                           </tbody>
                         </table>
