@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export default function V3RentalSpacePage() {
   // 予約モーダル・フォームの状態管理
@@ -14,6 +15,8 @@ export default function V3RentalSpacePage() {
   const [coupon, setCoupon] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
   const [weekOffset, setWeekOffset] = useState(0);
@@ -85,11 +88,46 @@ export default function V3RentalSpacePage() {
     setSelectedDate(dateStr);
     setIsBookingOpen(true);
     setIsSubmitted(false);
+    setErrorMessage('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitted(true);
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const { error } = await supabase
+        .from('poker_bookings')
+        .insert([
+          {
+            date: selectedDate,
+            start_time: startTime,
+            end_time: endTime,
+            name: name,
+            email: email,
+            phone: phone || null,
+            coupon: coupon || null,
+            notes: notes || null,
+            total_price: price,
+            status: 'confirmed'
+          }
+        ]);
+
+      if (error) {
+        throw error;
+      }
+
+      setIsSubmitted(true);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message || '予約の保存に失敗しました。');
+      } else {
+        setErrorMessage('予約の保存に失敗しました。');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -487,6 +525,13 @@ export default function V3RentalSpacePage() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* エラーメッセージ表示 */}
+                  {errorMessage && (
+                    <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-lg text-xs font-semibold">
+                      {errorMessage}
+                    </div>
+                  )}
+
                   {/* お名前 */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -609,9 +654,10 @@ export default function V3RentalSpacePage() {
                   <div>
                     <button
                       type="submit"
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-sm"
+                      disabled={isSubmitting}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white font-bold py-3 px-4 rounded-xl transition shadow-sm"
                     >
-                      予約を確定する
+                      {isSubmitting ? '送信中...' : '予約を確定する'}
                     </button>
                   </div>
                 </form>
