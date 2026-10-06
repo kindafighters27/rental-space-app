@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function V3RentalSpacePage() {
@@ -25,6 +25,17 @@ export default function V3RentalSpacePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState('');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // 管理者画面の状態管理
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminAuthError, setAdminAuthError] = useState('');
+  const [adminBookings, setAdminBookings] = useState<any[]>([]);
+  const [isLoadingAdminBookings, setIsLoadingAdminBookings] = useState(false);
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'valid' | 'cancelled'>('all');
+  const [adminViewMode, setAdminViewMode] = useState<'bookings' | 'customers'>('bookings');
 
   // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
   const [weekOffset, setWeekOffset] = useState(0);
@@ -162,7 +173,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 予約検索処理
+  // 予約検索処理（ユーザー用）
   const handleSearchBookings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchEmail.trim()) return;
@@ -192,7 +203,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 予約キャンセル処理
+  // 予約キャンセル処理（ユーザー用）
   const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('本当にこの予約をキャンセルしますか？')) return;
 
@@ -217,6 +228,76 @@ export default function V3RentalSpacePage() {
     }
   };
 
+  // 管理者ログイン認証
+  const handleAdminAuth = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPassword === '0509') {
+      setIsAdminLoggedIn(true);
+      setIsAdminAuthModalOpen(false);
+      setAdminPassword('');
+      setAdminAuthError('');
+      fetchAdminBookings();
+    } else {
+      setAdminAuthError('パスワードが正しくありません。');
+    }
+  };
+
+  // 管理者用全予約データ取得
+  const fetchAdminBookings = async () => {
+    setIsLoadingAdminBookings(true);
+    try {
+      const { data, error } = await supabase
+        .from('poker_bookings')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (data) {
+        setAdminBookings(data);
+      }
+    } catch (err) {
+      console.error('管理者予約取得エラー:', err);
+    } finally {
+      setIsLoadingAdminBookings(false);
+    }
+  };
+
+  // 管理者確認チェックボックス切り替え
+  const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('poker_bookings')
+        .update({ notes: currentConfirmed ? null : '確認済' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setAdminBookings((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, notes: currentConfirmed ? null : '確認済' } : b))
+      );
+    } catch (err) {
+      console.error('確認ステータス更新エラー:', err);
+    }
+  };
+
+  // フィルタリング処理（管理者画面）
+  const filteredAdminBookings = adminBookings.filter((b) => {
+    // ステータスフィルター
+    if (adminStatusFilter === 'valid' && b.status === 'cancelled') return false;
+    if (adminStatusFilter === 'cancelled' && b.status !== 'cancelled') return false;
+
+    // 検索クエリフィルター
+    if (adminSearchQuery.trim()) {
+      const q = adminSearchQuery.toLowerCase();
+      const nameMatch = b.name?.toLowerCase().includes(q);
+      const emailMatch = b.email?.toLowerCase().includes(q);
+      const dateMatch = b.date?.toLowerCase().includes(q);
+      return nameMatch || emailMatch || dateMatch;
+    }
+
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 pb-12">
       {/* ナビゲーションバー */}
@@ -228,7 +309,10 @@ export default function V3RentalSpacePage() {
           </div>
           <div className="flex items-center space-x-2 text-xs md:text-sm">
             <button 
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              onClick={() => {
+                setIsAdminLoggedIn(false);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full font-medium transition"
             >
               トップページに戻る
@@ -245,8 +329,16 @@ export default function V3RentalSpacePage() {
               予約の確認・キャンセル
             </button>
             <button 
-              onClick={() => alert('管理者ログイン画面へ移動します')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full font-medium transition"
+              onClick={() => {
+                if (isAdminLoggedIn) {
+                  // すでにログイン済みならトップへスクロール
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  setIsAdminAuthModalOpen(true);
+                  setAdminAuthError('');
+                }
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-full font-medium transition shadow-sm"
             >
               管理者ログイン
             </button>
@@ -254,188 +346,466 @@ export default function V3RentalSpacePage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* メインヒーローカード */}
-        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
-          <div className="mb-3">
-            <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold">
-              募集中
-            </span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
-            COCOKARA レンタルスペース
-          </h1>
-          <p className="text-slate-600 text-sm md:text-base mb-4">
-            会議や各種イベント、教室利用に最適なレンタルスペースです。
-          </p>
-          <div className="overflow-hidden rounded-xl bg-slate-200 aspect-video relative group">
-            <img 
-              src="/space2.JPG" 
-              alt="COCOKARA 室内 ポーカーテーブル" 
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-          </div>
-        </div>
-
-        {/* 設備・備品・サービス */}
-        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">
-            設備・備品・サービス
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">🚪</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">個室 (壁・扉あり)</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">🚻</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">トイレ</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">🔌</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">電源</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">❄️</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">エアコン (冷暖房)</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">🍳</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">キッチン設備</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">🍴</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">飲食可</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">🍷</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">飲酒可</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">✨</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">片付けおまかせ</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
-              <span className="text-2xl mb-1">🗑️</span>
-              <span className="text-xs md:text-sm font-medium text-slate-700">ゴミ処理おまかせ</span>
-            </div>
-          </div>
-
-          {/* 各種確認ボタン */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 pt-4 border-t border-slate-100">
-            <button 
-              onClick={() => setActiveModal('kiyaku')}
-              className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm"
-            >
-              <span>📜</span>
-              <span>利用規約を確認する</span>
-            </button>
-            <button 
-              onClick={() => setActiveModal('house')}
-              className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm"
-            >
-              <span>📋</span>
-              <span>ハウスルールを確認する</span>
-            </button>
-            <a 
-              href="/taishuru2026.pdf"
-              target="_blank"
-              rel="noreferrer"
-              className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm text-center"
-            >
-              <span>🔑</span>
-              <span>入退出マニュアルを確認する</span>
-            </a>
-          </div>
-        </div>
-
-        {/* 利用料金プラン */}
-        <div className="bg-amber-50/60 rounded-2xl p-4 md:p-6 shadow-sm border border-amber-200/60">
-          <h2 className="text-lg font-bold text-slate-900 mb-3">利用料金プラン</h2>
-          <ul className="space-y-1.5 text-sm md:text-base text-slate-700">
-            <li>・基本料金（1〜6時間まで）: <span className="font-semibold text-slate-900">¥12,000</span></li>
-            <li>・6時間超過分: 1時間につき <span className="font-semibold text-slate-900">+¥2,000</span></li>
-          </ul>
-        </div>
-
-        {/* 予約空き状況 */}
-        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <h2 className="text-lg font-bold text-slate-900">予約空き状況（最大1ヶ月先まで）</h2>
-            <div className="flex space-x-2">
-              <button 
-                onClick={handlePrevWeek}
-                disabled={weekOffset === 0}
-                className={`border px-3 py-1 rounded-lg text-xs md:text-sm transition ${
-                  weekOffset === 0 
-                    ? 'border-slate-200 text-slate-300 cursor-not-allowed' 
-                    : 'border-slate-300 hover:bg-slate-50 text-slate-600'
-                }`}
+      {/* 管理者ログイン済みの表示（画像2枚目を再現） */}
+      {isAdminLoggedIn ? (
+        <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+          {/* 上部ヘッダーコントロール */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-lg md:text-xl font-bold text-slate-900">
+              管理者ダッシュボード（予約一覧）
+            </h1>
+            <div className="flex items-center space-x-2 text-xs md:text-sm">
+              <button
+                onClick={() => setAdminViewMode(adminViewMode === 'bookings' ? 'customers' : 'bookings')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-lg transition"
               >
-                &lt; 前の週
+                {adminViewMode === 'bookings' ? '顧客リストを見る' : '予約一覧を見る'}
               </button>
-              <button 
-                onClick={handleNextWeek}
-                disabled={weekOffset >= 2}
-                className={`border px-3 py-1 rounded-lg text-xs md:text-sm transition ${
-                  weekOffset >= 2 
-                    ? 'border-slate-200 text-slate-300 cursor-not-allowed' 
-                    : 'border-slate-300 hover:bg-slate-50 text-slate-600'
-                }`}
+              <button
+                onClick={fetchAdminBookings}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-2 rounded-lg transition border border-slate-200"
               >
-                次の週 &gt;
+                更新
+              </button>
+              <button
+                onClick={() => setIsAdminLoggedIn(false)}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-3 py-2 rounded-lg transition border border-rose-200"
+              >
+                ログアウト
+              </button>
+              <button
+                onClick={() => setIsAdminLoggedIn(false)}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-3.5 py-2 rounded-lg transition"
+              >
+                トップへ
               </button>
             </div>
           </div>
 
-          {/* カレンダー グリッド */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
-            {calendarDays.map((item, idx) => (
-              <div key={idx} className="border border-emerald-200 bg-emerald-50/30 rounded-xl p-2.5 text-center flex flex-col justify-between hover:bg-emerald-50/60 transition">
-                <span className="text-xs font-bold text-slate-700 mb-1.5 block">{item.date}</span>
+          {/* サブナビゲーション・フィルターコントロール */}
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex space-x-1 text-xs md:text-sm">
+              <button
+                onClick={() => setAdminViewMode('bookings')}
+                className={`px-3.5 py-1.5 rounded-lg font-bold transition ${
+                  adminViewMode === 'bookings'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                リスト表示
+              </button>
+              <button
+                onClick={() => alert('カレンダー一括確認画面')}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3.5 py-1.5 rounded-lg transition"
+              >
+                カレンダー一括確認
+              </button>
+              <button
+                onClick={() => alert('売上管理画面')}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3.5 py-1.5 rounded-lg transition"
+              >
+                売上管理
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm w-full md:w-auto">
+              {/* 検索インプット */}
+              <input
+                type="text"
+                placeholder="お名前、メール、スペース名、日付で検索"
+                value={adminSearchQuery}
+                onChange={(e) => setAdminSearchQuery(e.target.value)}
+                className="border border-slate-300 rounded-lg px-3 py-1.5 text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+
+              {/* ステータス切替 */}
+              <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg text-xs">
+                <span className="text-slate-500 pl-1 font-medium">ステータス:</span>
                 <button
-                  onClick={() => handleOpenBooking(item.date)}
-                  className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold py-1.5 px-2 rounded-lg transition"
+                  onClick={() => setAdminStatusFilter('all')}
+                  className={`px-2 py-1 rounded font-medium transition ${
+                    adminStatusFilter === 'all'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:bg-slate-200/60'
+                  }`}
                 >
-                  {item.status}
+                  すべて ({adminBookings.length})
+                </button>
+                <button
+                  onClick={() => setAdminStatusFilter('valid')}
+                  className={`px-2 py-1 rounded font-medium transition ${
+                    adminStatusFilter === 'valid'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:bg-slate-200/60'
+                  }`}
+                >
+                  有効な予約
+                </button>
+                <button
+                  onClick={() => setAdminStatusFilter('cancelled')}
+                  className={`px-2 py-1 rounded font-medium transition ${
+                    adminStatusFilter === 'cancelled'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:bg-slate-200/60'
+                  }`}
+                >
+                  キャンセル済み
                 </button>
               </div>
-            ))}
+            </div>
           </div>
-        </div>
 
-        {/* アクセス・所在地 */}
-        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900 mb-3">アクセス・所在地</h2>
-          <p className="text-xs md:text-sm text-slate-700 mb-4 flex items-center gap-1.5">
-            <span className="text-rose-500">📍</span>
-            <span>〒570-0012 大阪府守口市金田町2-1-9 COCOKARA</span>
-          </p>
-          
-          <div className="rounded-xl overflow-hidden border border-slate-200 relative h-64 bg-slate-100">
-            <div className="absolute top-3 left-3 z-10">
-              <a 
-                href="https://www.google.com/maps/search/?api=1&query=%E3%83%AF%E3%83%B3%E3%82%B0%E3%83%A9%E3%83%B3%E3%83%89+%E5%A4%A7%E9%98%AA%E府%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9" 
-                target="_blank" 
-                rel="noreferrer"
-                className="bg-white text-emerald-700 hover:bg-slate-50 border border-slate-200 shadow-sm text-xs font-bold py-1.5 px-3 rounded-lg flex items-center space-x-1 transition"
+          {/* 予約テーブルリスト */}
+          {adminViewMode === 'bookings' ? (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+              <table className="w-full text-left text-xs md:text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
+                    <th className="p-3">予約日</th>
+                    <th className="p-3">スペース</th>
+                    <th className="p-3">お名前</th>
+                    <th className="p-3">メールアドレス</th>
+                    <th className="p-3">時間</th>
+                    <th className="p-3">ステータス / 確認</th>
+                    <th className="p-3 text-right">金額</th>
+                    <th className="p-3 text-center">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {isLoadingAdminBookings ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-slate-400">
+                        読み込み中...
+                      </td>
+                    </tr>
+                  ) : filteredAdminBookings.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-slate-400">
+                        該当する予約が見つかりませんでした。
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAdminBookings.map((b) => {
+                      const isConfirmed = b.notes === '確認済';
+                      return (
+                        <tr key={b.id} className="hover:bg-slate-50/80 transition">
+                          <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{b.date}</td>
+                          <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
+                          <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{b.name} 様</td>
+                          <td className="p-3 text-slate-600 font-mono text-xs">{b.email}</td>
+                          <td className="p-3 text-slate-700 whitespace-nowrap">{b.start_time} - {b.end_time}</td>
+                          <td className="p-3 whitespace-nowrap">
+                            <div className="flex items-center space-x-2">
+                              {b.status === 'cancelled' ? (
+                                <span className="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold">
+                                  キャンセル済み
+                                </span>
+                              ) : (
+                                <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold">
+                                  仮予約
+                                </span>
+                              )}
+                              <label className="flex items-center space-x-1 cursor-pointer text-xs text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={isConfirmed}
+                                  onChange={() => handleToggleConfirmed(b.id, isConfirmed)}
+                                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <span>確認済</span>
+                              </label>
+                            </div>
+                          </td>
+                          <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                            ¥{Number(b.total_price || 0).toLocaleString()}
+                          </td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            <button
+                              onClick={() => alert(`予約ID: ${b.id}\n名前: ${b.name}\n電話: ${b.phone || '未入力'}\n備考: ${b.notes || 'なし'}`)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded transition"
+                            >
+                              編集
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* 顧客リスト表示 */
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto p-4">
+              <h3 className="font-bold text-slate-900 mb-3 text-sm">顧客リスト</h3>
+              <table className="w-full text-left text-xs md:text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
+                    <th className="p-3">お名前</th>
+                    <th className="p-3">メールアドレス</th>
+                    <th className="p-3">電話番号</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {Array.from(new Set(adminBookings.map((b) => b.email))).map((userEmail) => {
+                    const user = adminBookings.find((b) => b.email === userEmail);
+                    return (
+                      <tr key={userEmail} className="hover:bg-slate-50 transition">
+                        <td className="p-3 font-bold text-slate-900">{user?.name} 様</td>
+                        <td className="p-3 text-slate-600 font-mono">{userEmail}</td>
+                        <td className="p-3 text-slate-600">{user?.phone || '未登録'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </main>
+      ) : (
+        /* 通常のユーザー用表示 */
+        <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+          {/* メインヒーローカード */}
+          <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
+            <div className="mb-3">
+              <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold">
+                募集中
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+              COCOKARA レンタルスペース
+            </h1>
+            <p className="text-slate-600 text-sm md:text-base mb-4">
+              会議や各種イベント、教室利用に最適なレンタルスペースです。
+            </p>
+            <div className="overflow-hidden rounded-xl bg-slate-200 aspect-video relative group">
+              <img 
+                src="/space2.JPG" 
+                alt="COCOKARA 室内 ポーカーテーブル" 
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+            </div>
+          </div>
+
+          {/* 設備・備品・サービス */}
+          <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
+            <h2 className="text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">
+              設備・備品・サービス
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">🚪</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">個室 (壁・扉あり)</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">🚻</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">トイレ</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">🔌</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">電源</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">❄️</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">エアコン (冷暖房)</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">🍳</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">キッチン設備</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">🍴</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">飲食可</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">🍷</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">飲酒可</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">✨</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">片付けおまかせ</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-100/50 transition">
+                <span className="text-2xl mb-1">🗑️</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">ゴミ処理おまかせ</span>
+              </div>
+            </div>
+
+            {/* 各種確認ボタン */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 pt-4 border-t border-slate-100">
+              <button 
+                onClick={() => setActiveModal('kiyaku')}
+                className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm"
               >
-                <span>マップで開く</span>
-                <span>↗</span>
+                <span>📜</span>
+                <span>利用規約を確認する</span>
+              </button>
+              <button 
+                onClick={() => setActiveModal('house')}
+                className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm"
+              >
+                <span>📋</span>
+                <span>ハウスルールを確認する</span>
+              </button>
+              <a 
+                href="/taishuru2026.pdf"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm text-center"
+              >
+                <span>🔑</span>
+                <span>入退出マニュアルを確認する</span>
               </a>
             </div>
-            <iframe
-              title="COCOKARA Map"
-              src="https://maps.google.com/maps?q=%E5%A4%A7%E9%98%AA%E府%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9&t=&z=16&ie=UTF8&iwloc=&output=embed"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen={false}
-              loading="lazy"
-            ></iframe>
+          </div>
+
+          {/* 利用料金プラン */}
+          <div className="bg-amber-50/60 rounded-2xl p-4 md:p-6 shadow-sm border border-amber-200/60">
+            <h2 className="text-lg font-bold text-slate-900 mb-3">利用料金プラン</h2>
+            <ul className="space-y-1.5 text-sm md:text-base text-slate-700">
+              <li>・基本料金（1〜6時間まで）: <span className="font-semibold text-slate-900">¥12,000</span></li>
+              <li>・6時間超過分: 1時間につき <span className="font-semibold text-slate-900">+¥2,000</span></li>
+            </ul>
+          </div>
+
+          {/* 予約空き状況 */}
+          <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="text-lg font-bold text-slate-900">予約空き状況（最大1ヶ月先まで）</h2>
+              <div className="flex space-x-2">
+                <button 
+                  onClick={handlePrevWeek}
+                  disabled={weekOffset === 0}
+                  className={`border px-3 py-1 rounded-lg text-xs md:text-sm transition ${
+                    weekOffset === 0 
+                      ? 'border-slate-200 text-slate-300 cursor-not-allowed' 
+                      : 'border-slate-300 hover:bg-slate-50 text-slate-600'
+                  }`}
+                >
+                  &lt; 前の週
+                </button>
+                <button 
+                  onClick={handleNextWeek}
+                  disabled={weekOffset >= 2}
+                  className={`border px-3 py-1 rounded-lg text-xs md:text-sm transition ${
+                    weekOffset >= 2 
+                      ? 'border-slate-200 text-slate-300 cursor-not-allowed' 
+                      : 'border-slate-300 hover:bg-slate-50 text-slate-600'
+                  }`}
+                >
+                  次の週 &gt;
+                </button>
+              </div>
+            </div>
+
+            {/* カレンダー グリッド */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
+              {calendarDays.map((item, idx) => (
+                <div key={idx} className="border border-emerald-200 bg-emerald-50/30 rounded-xl p-2.5 text-center flex flex-col justify-between hover:bg-emerald-50/60 transition">
+                  <span className="text-xs font-bold text-slate-700 mb-1.5 block">{item.date}</span>
+                  <button
+                    onClick={() => handleOpenBooking(item.date)}
+                    className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold py-1.5 px-2 rounded-lg transition"
+                  >
+                    {item.status}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* アクセス・所在地 */}
+          <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
+            <h2 className="text-lg font-bold text-slate-900 mb-3">アクセス・所在地</h2>
+            <p className="text-xs md:text-sm text-slate-700 mb-4 flex items-center gap-1.5">
+              <span className="text-rose-500">📍</span>
+              <span>〒570-0012 大阪府守口市金田町2-1-9 COCOKARA</span>
+            </p>
+            
+            <div className="rounded-xl overflow-hidden border border-slate-200 relative h-64 bg-slate-100">
+              <div className="absolute top-3 left-3 z-10">
+                <a 
+                  href="https://www.google.com/maps/search/?api=1&query=%E3%83%AF%E3%83%B3%E3%82%B0%E3%83%A9%E3%83%B3%E3%83%89+%E5%A4%A7%E9%98%AA%E府%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="bg-white text-emerald-700 hover:bg-slate-50 border border-slate-200 shadow-sm text-xs font-bold py-1.5 px-3 rounded-lg flex items-center space-x-1 transition"
+                >
+                  <span>マップで開く</span>
+                  <span>↗</span>
+                </a>
+              </div>
+              <iframe
+                title="COCOKARA Map"
+                src="https://maps.google.com/maps?q=%E5%A4%A7%E9%98%AA%E府%E5%AE%88%E5%8F%A3%E5%B8%82%E9%87%91%E7%94%B0%E7%94%BA2-1-9&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={false}
+                loading="lazy"
+              ></iframe>
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* 管理者認証パスワード入力モーダル */}
+      {isAdminAuthModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>🔒</span>
+                <span>管理者ログイン</span>
+              </h3>
+              <button 
+                onClick={() => setIsAdminAuthModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleAdminAuth} className="space-y-4">
+              {adminAuthError && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg font-semibold">
+                  {adminAuthError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  パスワードを入力してください
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="パスワード (0509)"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="flex space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAdminAuthModalOpen(false)}
+                  className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
+                >
+                  ログイン
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </main>
+      )}
 
       {/* 予約の確認・キャンセルモーダル */}
       {isCancelModalOpen && (
