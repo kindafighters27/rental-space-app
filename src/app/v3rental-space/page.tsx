@@ -37,7 +37,7 @@ export default function V3RentalSpacePage() {
   const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'valid' | 'cancelled'>('all');
   const [adminViewMode, setAdminViewMode] = useState<'bookings' | 'customers' | 'sales'>('bookings');
 
-  // 売上管理用の状態（Supabaseのexpensesテーブルと連動）
+  // 売上管理用の状態（新規作成した V3space_expenses テーブルと完全連動）
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedMonth, setSelectedMonth] = useState('2026-10');
   const [expenses, setExpenses] = useState<{ [key: string]: { rent: number; staff: number; drink: number; wifi: number; equipment: number } }>({
@@ -91,7 +91,7 @@ export default function V3RentalSpacePage() {
   const fetchExpensesFromSupabase = async () => {
     try {
       const { data, error } = await supabase
-        .from('expenses')
+        .from('V3space_expenses')
         .select('*');
       if (!error && data) {
         const expMap: { [key: string]: { rent: number; staff: number; drink: number; wifi: number; equipment: number } } = {};
@@ -107,7 +107,7 @@ export default function V3RentalSpacePage() {
         setExpenses((prev) => ({ ...prev, ...expMap }));
       }
     } catch (err) {
-      console.warn('経費データ取得エラー（expensesテーブル未作成の場合はローカル状態を保持します）:', err);
+      console.warn('経費データ取得エラー:', err);
     }
   };
 
@@ -487,7 +487,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 経費入力変更ハンドラー（Supabaseのexpensesテーブルにも自動保存）
+  // 経費入力変更ハンドラー（V3space_expenses テーブルに自動保存）
   const handleExpenseChange = async (month: string, field: string, val: number) => {
     const currentExp = expenses[month] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
     const updatedMonthExp = { ...currentExp, [field]: val };
@@ -499,7 +499,7 @@ export default function V3RentalSpacePage() {
 
     try {
       await supabase
-        .from('expenses')
+        .from('V3space_expenses')
         .upsert(
           {
             month: month,
@@ -512,7 +512,7 @@ export default function V3RentalSpacePage() {
           { onConflict: 'month' }
         );
     } catch (err) {
-      console.warn('Supabaseへの経費保存に失敗しました（expensesテーブルをご確認ください）:', err);
+      console.warn('Supabaseへの経費保存に失敗しました:', err);
     }
   };
 
