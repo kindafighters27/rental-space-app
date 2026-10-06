@@ -1,0 +1,386 @@
+'use client';
+
+import React, { useState } from 'react';
+
+export default function V3RentalSpacePage() {
+  // 予約モーダル・フォームの状態管理
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [startTime, setStartTime] = useState('13:00');
+  const [endTime, setEndTime] = useState('19:00');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [coupon, setCoupon] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // 時間計算と料金計算 (基本: 1~6時間 ¥12,000, 6時間超え 1時間につき +¥2,000)
+  const calculatePrice = () => {
+    const startHour = parseInt(startTime.split(':')[0], 10);
+    const endHour = parseInt(endTime.split(':')[0], 10);
+    let hours = endHour - startHour;
+    if (hours <= 0) hours = 1; // 最低1時間
+
+    let price = 12000;
+    if (hours > 6) {
+      price += (hours - 6) * 2000;
+    }
+    
+    // クーポン割引（例: SPECIAL2026で1,000円引き）
+    if (coupon.trim().toUpperCase() === 'SPECIAL2026') {
+      price = Math.max(0, price - 1000);
+    }
+
+    return { hours, price };
+  };
+
+  const { hours, price } = calculatePrice();
+
+  const handleOpenBooking = (dateStr: string) => {
+    setSelectedDate(dateStr);
+    setIsBookingOpen(true);
+    setIsSubmitted(false);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitted(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 font-sans text-slate-800">
+      {/* ナビゲーションバー */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-xl">🏠</span>
+            <span className="font-bold text-lg text-slate-800">COCOKARA レンタルスペース v3</span>
+          </div>
+          <div className="flex items-center space-x-2 text-xs md:text-sm">
+            <button className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full font-medium transition">
+              トップページに戻る
+            </button>
+            <button className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full font-medium transition">
+              予約の確認・キャンセル
+            </button>
+            <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full font-medium transition">
+              管理者ログイン
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* メインヒーローカード */}
+        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
+          <div className="mb-3">
+            <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold">
+              募集中
+            </span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+            COCOKARA レンタルスペース
+          </h1>
+          <p className="text-slate-600 text-sm md:text-base mb-4">
+            会議や各種イベント、教室利用に最適なレンタルスペースです。
+          </p>
+          <div className="overflow-hidden rounded-xl bg-slate-200 aspect-video relative">
+            <img 
+              src="https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1200&q=80" 
+              alt="COCOKARA 室内" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+
+        {/* 設備・備品・サービス */}
+        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">
+            設備・備品・サービス
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">🚪</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">個室 (壁・扉あり)</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">🚻</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">トイレ</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">🔌</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">電源</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">❄️</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">エアコン (冷暖房)</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">🍳</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">キッチン設備</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">🍴</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">飲食可</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">🍷</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">飲酒可</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">✨</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">片付けおまかせ</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+              <span className="text-2xl mb-1">🗑️</span>
+              <span className="text-xs md:text-sm font-medium text-slate-700">ゴミ処理おまかせ</span>
+            </div>
+          </div>
+
+          {/* 各種確認ボタン */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 pt-4 border-t border-slate-100">
+            <button className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition">
+              <span>📜</span>
+              <span>利用規約を確認する</span>
+            </button>
+            <button className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition">
+              <span>📋</span>
+              <span>ハウスルールを確認する</span>
+            </button>
+            <button className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition">
+              <span>🔑</span>
+              <span>入退出マニュアルを確認する</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 利用料金プラン */}
+        <div className="bg-amber-50/60 rounded-2xl p-4 md:p-6 shadow-sm border border-amber-200/60">
+          <h2 className="text-lg font-bold text-slate-900 mb-3">利用料金プラン</h2>
+          <ul className="space-y-1.5 text-sm md:text-base text-slate-700">
+            <li>・基本料金（1〜6時間まで）: <span className="font-semibold text-slate-900">¥12,000</span></li>
+            <li>・6時間超過分: 1時間につき <span className="font-semibold text-slate-900">+¥2,000</span></li>
+          </ul>
+        </div>
+
+        {/* 予約空き状況 */}
+        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h2 className="text-lg font-bold text-slate-900">予約空き状況（最大1ヶ月先まで）</h2>
+            <div className="flex space-x-2">
+              <button className="border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs md:text-sm transition">
+                &lt; 前の週
+              </button>
+              <button className="border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1 rounded-lg text-xs md:text-sm transition">
+                次の週 &gt;
+              </button>
+            </div>
+          </div>
+
+          {/* カレンダー グリッド */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
+            {[
+              { date: '10-6 (火)', status: '空きあり' },
+              { date: '10-7 (水)', status: '空きあり' },
+              { date: '10-8 (木)', status: '空きあり' },
+              { date: '10-9 (金)', status: '空きあり' },
+              { date: '10-10 (土)', status: '空きあり' },
+              { date: '10-11 (日)', status: '空きあり' },
+              { date: '10-12 (月)', status: '空きあり' },
+              { date: '10-13 (火)', status: '空きあり' },
+              { date: '10-14 (水)', status: '空きあり' },
+              { date: '10-15 (木)', status: '空きあり' },
+              { date: '10-16 (金)', status: '空きあり' },
+              { date: '10-17 (土)', status: '空きあり' },
+              { date: '10-18 (日)', status: '空きあり' },
+              { date: '10-19 (月)', status: '空きあり' },
+            ].map((item, idx) => (
+              <div key={idx} className="border border-emerald-200 bg-emerald-50/30 rounded-xl p-2.5 text-center flex flex-col justify-between">
+                <span className="text-xs font-bold text-slate-700 mb-1.5 block">{item.date}</span>
+                <button
+                  onClick={() => handleOpenBooking(item.date)}
+                  className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold py-1.5 px-2 rounded-lg transition"
+                >
+                  {item.status}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* アクセス・所在地 */}
+        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
+          <h2 className="text-lg font-bold text-slate-900 mb-3">アクセス・所在地</h2>
+          <p className="text-xs md:text-sm text-slate-700 mb-4 flex items-center gap-1.5">
+            <span className="text-rose-500">📍</span>
+            <span>〒570-0012 大阪府守口市金田町2-1-9 COCOKARA</span>
+          </p>
+          
+          <div className="rounded-xl overflow-hidden border border-slate-200 relative h-64 bg-slate-100">
+            <div className="absolute top-3 left-3 z-10">
+              <a 
+                href="https://maps.google.com" 
+                target="_blank" 
+                rel="noreferrer"
+                className="bg-white text-emerald-700 hover:bg-slate-50 border border-slate-200 shadow-sm text-xs font-bold py-1.5 px-3 rounded-lg flex items-center space-x-1"
+              >
+                <span>マップで開く</span>
+                <span>↗</span>
+              </a>
+            </div>
+            <iframe
+              title="COCOKARA Map"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3278.431200108969!2d135.58047!3d34.75701!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6000e30b0b0b0b0b%3A0x0!2z44CSNTcwLTAwMTIg5aSn6Ziq5p2c44K36YeR54Sw55S6Mi0xLTkgQ09DT0tBUkE!5e0!3m2!1sja!2sjp!4v1600000000000!5m2!1sja!2sjp"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen={false}
+              loading="lazy"
+            ></iframe>
+          </div>
+        </div>
+      </main>
+
+      {/* 予約入力モーダル */}
+      {isBookingOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-100">
+            {!isSubmitted ? (
+              <>
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                  <h3 className="text-lg font-bold text-slate-900">
+                    ご予約のお申し込み ({selectedDate})
+                  </h3>
+                  <button 
+                    onClick={() => setIsBookingOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 text-xl font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* お名前 */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      代表者名 <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="山田 太郎"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  {/* メールアドレス */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      メールアドレス <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="example@cocokara.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  {/* 利用時間選択 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">開始時間</label>
+                      <select
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        {Array.from({ length: 15 }, (_, i) => i + 9).map((h) => (
+                          <option key={h} value={`${h}:00`}>{`${h}:00`}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">終了時間</label>
+                      <select
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        {Array.from({ length: 15 }, (_, i) => i + 10).map((h) => (
+                          <option key={h} value={`${h}:00`}>{`${h}:00`}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* クーポンコード */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      クーポンコード（お持ちの方）
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="例: SPECIAL2026"
+                      value={coupon}
+                      onChange={(e) => setCoupon(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
+                    />
+                  </div>
+
+                  {/* 料金リアルタイム計算枠 */}
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-1 text-sm">
+                    <div className="flex justify-between text-slate-600">
+                      <span>ご利用予定時間:</span>
+                      <span className="font-medium text-slate-800">{hours} 時間</span>
+                    </div>
+                    {coupon.trim().toUpperCase() === 'SPECIAL2026' && (
+                      <div className="flex justify-between text-emerald-600">
+                        <span>クーポン割引:</span>
+                        <span>-¥1,000</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
+                      <span>お支払合計金額:</span>
+                      <span className="text-emerald-700 text-lg">¥{price.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {/* 予約確定ボタン */}
+                  <div>
+                    <button
+                      type="submit"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-sm"
+                    >
+                      予約を確定する
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              /* 完了表示 */
+              <div className="text-center py-6 space-y-4">
+                <div className="text-5xl">🎉</div>
+                <h3 className="text-xl font-bold text-slate-900">ご予約を受け付けました</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  {name} 様<br />
+                  ご登録いただいたメールアドレス（{email}）宛に<br />
+                  予約確認メールをお送りしました。
+                </p>
+                <button
+                  onClick={() => setIsBookingOpen(false)}
+                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition"
+                >
+                  閉じる
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
