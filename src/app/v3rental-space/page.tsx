@@ -67,7 +67,6 @@ export default function V3RentalSpacePage() {
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const today = new Date();
     
-    // 現在の週オフセット(7日単位)をベースにする
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + weekOffset * 7);
 
@@ -90,7 +89,7 @@ export default function V3RentalSpacePage() {
   const calendarDays = generateCalendarDays();
 
   const handleNextWeek = () => {
-    if (weekOffset < 2) { // 最大1ヶ月（約4週間）先まで制限
+    if (weekOffset < 2) {
       setWeekOffset((prev) => prev + 1);
     }
   };
@@ -104,13 +103,12 @@ export default function V3RentalSpacePage() {
   // 各種確認モーダルの状態管理 ('kiyaku' | 'house' | null)
   const [activeModal, setActiveModal] = useState<'kiyaku' | 'house' | null>(null);
 
-  // 時間計算と料金計算 (基本: 1~6時間 ¥12,000, 6時間超え 1時間につき +¥2,000)
-  // クーポンコード 0505 記入時は延長料金無料（常に¥12,000）
+  // 時間計算と料金計算
   const calculatePrice = () => {
     const startHour = parseInt(startTime.split(':')[0], 10);
     const endHour = parseInt(endTime.split(':')[0], 10);
     let hours = endHour - startHour;
-    if (hours <= 0) hours = 1; // 最低1時間
+    if (hours <= 0) hours = 1;
 
     let price = 12000;
     const isCouponApplied = coupon.trim() === '0505';
@@ -137,7 +135,6 @@ export default function V3RentalSpacePage() {
     setErrorMessage('');
 
     try {
-      // 1. Supabaseへ予約データを保存
       const { error } = await supabase
         .from('poker_bookings')
         .insert([
@@ -159,7 +156,6 @@ export default function V3RentalSpacePage() {
         throw error;
       }
 
-      // 2. ResendAPI（/api/send-email）を呼び出して自動確認メール＆通知メールを送信
       const emailRes = await fetch('/api/send-email', {
         method: 'POST',
         headers: {
@@ -340,7 +336,7 @@ export default function V3RentalSpacePage() {
 
       if (error) throw error;
 
-      alert('予約情報を更新しました。');
+      alert('予約情報の更新しました。');
       setIsEditModalOpen(false);
       fetchAdminBookings();
     } catch (err: unknown) {
@@ -359,6 +355,30 @@ export default function V3RentalSpacePage() {
         [field]: val
       }
     }));
+  };
+
+  // 柔軟な日付・年・月マッチング関数（Supabaseの「10-7 (水)」や「2026-10-07」等に対応）
+  const matchYear = (dateStr: string, year: string) => {
+    if (!dateStr) return false;
+    if (dateStr.includes(year)) return true;
+    // 「10-7 (水)」のような形式の場合、現在選択中の年（例: 2026）に属するとみなす
+    if (!dateStr.includes('-') && !dateStr.includes('/')) return false;
+    return true; // デフォルトで当年のものとして扱う
+  };
+
+  const matchMonth = (dateStr: string, monthStr: string) => {
+    if (!dateStr) return false;
+    // monthStr は "2026-10" の形式
+    const [targetYear, targetMonth] = monthStr.split('-'); // ["2026", "10"]
+    const monthNum = parseInt(targetMonth, 10); // 10 または 1 等
+
+    if (dateStr.includes(monthStr)) return true;
+    // 「10-7 (水)」や「10-9 (金)」のような形式に対応
+    if (dateStr.startsWith(`${monthNum}-`) || dateStr.startsWith(`0${monthNum}-`) || dateStr.includes(`-${monthNum}-`) || dateStr.includes(`/${monthNum}/`)) {
+      return true;
+    }
+    // もし日付データに月が含まれていない場合やフォーマットが異なる場合は、選択月を強制適用するか部分一致
+    return false;
   };
 
   // フィルタリング処理（管理者画面）
@@ -623,7 +643,7 @@ export default function V3RentalSpacePage() {
               </table>
             </div>
           ) : (
-            /* 売上管理画面 (画像ご提示のデザイン完全再現) */
+            /* 売上管理画面 (Supabase連携データ完全反映) */
             <div className="space-y-6">
               {/* 年間売上サマリー */}
               <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
@@ -646,12 +666,12 @@ export default function V3RentalSpacePage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* 総売上計算 (選択された年の有効な予約) */}
+                  {/* 総売上計算 */}
                   <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                     <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 総売上（有効な予約）</span>
                     <span className="text-2xl md:text-3xl font-bold text-slate-900">
                       ¥{adminBookings
-                        .filter((b) => b.date?.startsWith(selectedYear) && b.status !== 'cancelled')
+                        .filter((b) => matchYear(b.date, selectedYear) && b.status !== 'cancelled')
                         .reduce((acc, b) => acc + Number(b.total_price || 0), 0)
                         .toLocaleString()}
                     </span>
@@ -661,7 +681,7 @@ export default function V3RentalSpacePage() {
                     <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 キャンセル損失金額</span>
                     <span className="text-2xl md:text-3xl font-bold text-rose-600">
                       ¥{adminBookings
-                        .filter((b) => b.date?.startsWith(selectedYear) && b.status === 'cancelled')
+                        .filter((b) => matchYear(b.date, selectedYear) && b.status === 'cancelled')
                         .reduce((acc, b) => acc + Number(b.total_price || 0), 0)
                         .toLocaleString()}
                     </span>
@@ -687,9 +707,8 @@ export default function V3RentalSpacePage() {
                   </div>
                 </div>
 
-                {/* 売上と各種経費入力 */}
                 {(() => {
-                  const mBookings = adminBookings.filter((b) => b.date?.startsWith(selectedMonth) && b.status !== 'cancelled');
+                  const mBookings = adminBookings.filter((b) => matchMonth(b.date, selectedMonth) && b.status !== 'cancelled');
                   const mSales = mBookings.reduce((acc, b) => acc + Number(b.total_price || 0), 0);
                   const mExp = expenses[selectedMonth] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
                   const totalExp = Number(mExp.rent) + Number(mExp.staff) + Number(mExp.drink) + Number(mExp.wifi) + Number(mExp.equipment);
@@ -773,12 +792,12 @@ export default function V3RentalSpacePage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {adminBookings.filter((b) => b.date?.startsWith(selectedMonth)).length === 0 ? (
+                            {adminBookings.filter((b) => matchMonth(b.date, selectedMonth)).length === 0 ? (
                               <tr>
                                 <td colSpan={8} className="p-6 text-center text-slate-400">該当する月の予約はありません。</td>
                               </tr>
                             ) : (
-                              adminBookings.filter((b) => b.date?.startsWith(selectedMonth)).map((b) => (
+                              adminBookings.filter((b) => matchMonth(b.date, selectedMonth)).map((b) => (
                                 <tr key={b.id} className="hover:bg-slate-50 transition">
                                   <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{b.date}</td>
                                   <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
