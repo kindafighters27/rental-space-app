@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export default function PokerV2Page() {
+export default function V3RentalSpacePage() {
   // 予約モーダル・フォームの状態管理
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
@@ -152,7 +152,6 @@ export default function PokerV2Page() {
       const bStart = parseInt(b.start_time.split(':')[0], 10);
       const bEnd = parseInt(b.end_time.split(':')[0], 10);
 
-      // 通常の時間帯重複チェック (A開始 < B終了 かつ A終了 > B開始)
       if (newStart < bEnd && newEnd > bStart) {
         return `指定された時間帯（${sTime} 〜 ${eTime}）は、すでに他のお客様のご予約（${b.start_time} 〜 ${b.end_time}）が入っているためご予約できません。`;
       }
@@ -160,7 +159,7 @@ export default function PokerV2Page() {
     return null;
   };
 
-  // 選択可能な開始時間リスト（既存予約の時間帯に含まれる場合は選択不可）
+  // 選択可能な開始時間リスト
   const getAvailableStartHours = () => {
     const existing = getExistingBookingsForDate(selectedDate);
     const hoursList = [];
@@ -181,7 +180,7 @@ export default function PokerV2Page() {
     return hoursList;
   };
 
-  // 選択可能な終了時間リスト（開始時間以降かつ、途中に既存予約を跨がない範囲）
+  // 選択可能な終了時間リスト
   const getAvailableEndHours = () => {
     const startH = parseInt(startTime.split(':')[0], 10);
     const existing = getExistingBookingsForDate(selectedDate);
@@ -240,7 +239,6 @@ export default function PokerV2Page() {
     setIsSubmitting(true);
     setErrorMessage('');
 
-    // 重複チェック
     const overlapError = checkTimeOverlap(selectedDate, startTime, endTime);
     if (overlapError) {
       setErrorMessage(overlapError);
@@ -248,29 +246,26 @@ export default function PokerV2Page() {
       return;
     }
 
-    const bookingData = {
-      date: selectedDate,
-      start_time: startTime,
-      end_time: endTime,
-      name: name,
-      email: email, // 修正箇所: 正しいカラム名 'email' を使用
-      phone: phone || null,
-      coupon: coupon || null,
-      notes: notes || null,
-      total_price: price,
-      status: 'confirmed'
-    };
-
     try {
       const { error } = await supabase
         .from('poker_bookings')
-        .insert([bookingData]);
+        .insert([
+          {
+            date: selectedDate,
+            start_time: startTime,
+            end_time: endTime,
+            name: name,
+            email: email,
+            phone: phone || null,
+            coupon: coupon || null,
+            notes: notes || null,
+            total_price: price,
+            status: 'confirmed'
+          }
+        ]);
 
       if (error) {
-        console.error('Supabase insert error:', error.message);
-        alert('保存に失敗しました: ' + error.message);
-        setIsSubmitting(false);
-        return;
+        throw error;
       }
 
       try {
@@ -430,7 +425,7 @@ export default function PokerV2Page() {
     });
   };
 
-  // インライン編集を保存する
+  // インライン編集を保存する（Supabaseのテーブルに直接反映）
   const handleSaveInlineEdit = async (id: string) => {
     const overlapError = checkTimeOverlap(editRowData.date, editRowData.start_time, editRowData.end_time, id);
     if (overlapError) {
@@ -542,7 +537,7 @@ export default function PokerV2Page() {
         <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <span className="text-xl">🏠</span>
-            <span className="font-bold text-lg text-slate-800">COCOKARA レンタルスペース v2</span>
+            <span className="font-bold text-lg text-slate-800">COCOKARA レンタルスペース v3</span>
           </div>
           <div className="flex items-center space-x-2 text-xs md:text-sm">
             <button 
