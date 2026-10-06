@@ -18,6 +18,14 @@ export default function V3RentalSpacePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // 予約確認・キャンセルモーダルの状態管理
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [searchEmail, setSearchEmail] = useState('');
+  const [userBookings, setUserBookings] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchMessage, setSearchMessage] = useState('');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
   // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -97,6 +105,7 @@ export default function V3RentalSpacePage() {
     setErrorMessage('');
 
     try {
+      // 1. Supabaseへ予約データを保存
       const { error } = await supabase
         .from('poker_bookings')
         .insert([
@@ -118,6 +127,29 @@ export default function V3RentalSpacePage() {
         throw error;
       }
 
+      // 2. ResendAPI（/api/send-email）を呼び出して自動確認メール＆通知メールを送信
+      const emailRes = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: selectedDate,
+          startTime: startTime,
+          endTime: endTime,
+          name: name,
+          email: email,
+          phone: phone,
+          coupon: coupon,
+          notes: notes,
+          totalPrice: price,
+        }),
+      });
+
+      if (!emailRes.ok) {
+        console.warn('メール送信APIでエラーが発生しましたが、予約保存は完了しています。');
+      }
+
       setIsSubmitted(true);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -127,6 +159,61 @@ export default function V3RentalSpacePage() {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // 予約検索処理
+  const handleSearchBookings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchEmail.trim()) return;
+
+    setIsSearching(true);
+    setSearchMessage('');
+    setUserBookings([]);
+
+    try {
+      const { data, error } = await supabase
+        .from('poker_bookings')
+        .select('*')
+        .eq('email', searchEmail.trim())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setUserBookings(data);
+      } else {
+        setSearchMessage('該当するご予約が見つかりませんでした。');
+      }
+    } catch (err: unknown) {
+      setSearchMessage('予約の検索中にエラーが発生しました。');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // 予約キャンセル処理
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm('本当にこの予約をキャンセルしますか？')) return;
+
+    setCancellingId(bookingId);
+    try {
+      const { error } = await supabase
+        .from('poker_bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      // 画面上のリストを更新
+      setUserBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
+      );
+      alert('予約のキャンセルが完了いたしました。');
+    } catch (err: unknown) {
+      alert('キャンセルの処理に失敗しました。');
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -147,7 +234,12 @@ export default function V3RentalSpacePage() {
               トップページに戻る
             </button>
             <button 
-              onClick={() => alert('予約の確認・キャンセルページへ誘導します')}
+              onClick={() => {
+                setIsCancelModalOpen(true);
+                setSearchEmail('');
+                setUserBookings([]);
+                setSearchMessage('');
+              }}
               className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full font-medium transition"
             >
               予約の確認・キャンセル
@@ -344,6 +436,108 @@ export default function V3RentalSpacePage() {
           </div>
         </div>
       </main>
+
+      {/* 予約の確認・キャンセルモーダル */}
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-100 flex flex-col">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>🔍</span>
+                <span>ご予約の確認・キャンセル</span>
+              </h3>
+              <button 
+                onClick={() => setIsCancelModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* 検索フォーム */}
+            <form onSubmit={handleSearchBookings} className="space-y-3 mb-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  ご予約時のメールアドレス
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    required
+                    placeholder="example@cocokara.com"
+                    value={searchEmail}
+                    onChange={(e) => setSearchEmail(e.target.value)}
+                    className="flex-1 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSearching}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm transition disabled:bg-slate-400"
+                  >
+                    {isSearching ? '検索中...' : '検索'}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* 検索メッセージ */}
+            {searchMessage && (
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg mb-4">
+                {searchMessage}
+              </div>
+            )}
+
+            {/* 検索結果リスト */}
+            {userBookings.length > 0 && (
+              <div className="space-y-3 overflow-y-auto max-h-60 pr-1">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">検索結果 ({userBookings.length}件)</h4>
+                {userBookings.map((b) => (
+                  <div key={b.id} className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="font-bold text-slate-900 text-sm block">{b.date} ({b.start_time} 〜 {b.end_time})</span>
+                        <span className="text-xs text-slate-600">代表者: {b.name} 様</span>
+                      </div>
+                      <div>
+                        {b.status === 'cancelled' ? (
+                          <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+                            キャンセル済み
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-semibold">
+                            予約確定
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-slate-600 pt-2 border-t border-slate-200/60">
+                      <span>合計金額: ¥{Number(b.total_price || 0).toLocaleString()}</span>
+                      {b.status !== 'cancelled' && (
+                        <button
+                          onClick={() => handleCancelBooking(b.id)}
+                          disabled={cancellingId === b.id}
+                          className="bg-rose-500 hover:bg-rose-600 text-white font-bold py-1 px-3 rounded-lg text-xs transition disabled:bg-slate-300"
+                        >
+                          {cancellingId === b.id ? '処理中...' : '予約をキャンセル'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6 pt-3 border-t border-slate-100 text-right">
+              <button
+                onClick={() => setIsCancelModalOpen(false)}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-5 rounded-xl text-sm transition"
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 各種確認モーダル（利用規約 / ハウスルール） */}
       {activeModal && (
