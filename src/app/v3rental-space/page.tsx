@@ -11,8 +11,6 @@ export default function V3RentalSpacePage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [purpose, setPurpose] = useState('会議・研修');
-  const [peopleCount, setPeopleCount] = useState('4');
   const [coupon, setCoupon] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -21,6 +19,7 @@ export default function V3RentalSpacePage() {
   const [activeModal, setActiveModal] = useState<'kiyaku' | 'house' | 'manual' | null>(null);
 
   // 時間計算と料金計算 (基本: 1~6時間 ¥12,000, 6時間超え 1時間につき +¥2,000)
+  // クーポンコード 0505 記入時は延長料金無料（常に¥12,000）
   const calculatePrice = () => {
     const startHour = parseInt(startTime.split(':')[0], 10);
     const endHour = parseInt(endTime.split(':')[0], 10);
@@ -28,19 +27,16 @@ export default function V3RentalSpacePage() {
     if (hours <= 0) hours = 1; // 最低1時間
 
     let price = 12000;
-    if (hours > 6) {
+    const isCouponApplied = coupon.trim() === '0505';
+
+    if (hours > 6 && !isCouponApplied) {
       price += (hours - 6) * 2000;
     }
-    
-    // クーポン割引（例: SPECIAL2026で1,000円引き）
-    if (coupon.trim().toUpperCase() === 'SPECIAL2026') {
-      price = Math.max(0, price - 1000);
-    }
 
-    return { hours, price };
+    return { hours, price, isCouponApplied };
   };
 
-  const { hours, price } = calculatePrice();
+  const { hours, price, isCouponApplied } = calculatePrice();
 
   const handleOpenBooking = (dateStr: string) => {
     setSelectedDate(dateStr);
@@ -552,48 +548,18 @@ export default function V3RentalSpacePage() {
                     />
                   </div>
 
-                  {/* 電話番号 */}
+                  {/* 電話番号（任意） */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      電話番号 <span className="text-rose-500">*</span>
+                      電話番号
                     </label>
                     <input
                       type="tel"
-                      required
                       placeholder="090-0000-0000"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
-                  </div>
-
-                  {/* 利用目的 & 人数 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">利用目的</label>
-                      <select
-                        value={purpose}
-                        onChange={(e) => setPurpose(e.target.value)}
-                        className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      >
-                        <option value="会議・研修">会議・研修</option>
-                        <option value="ポーカー・ゲーム会">ポーカー・ゲーム会</option>
-                        <option value="イベント・パーティー">イベント・パーティー</option>
-                        <option value="撮影・配信">撮影・配信</option>
-                        <option value="その他">その他</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">利用予定人数</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={peopleCount}
-                        onChange={(e) => setPeopleCount(e.target.value)}
-                        className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
                   </div>
 
                   {/* 利用時間選択 */}
@@ -631,7 +597,7 @@ export default function V3RentalSpacePage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="例: SPECIAL2026"
+                      placeholder="例: 0505"
                       value={coupon}
                       onChange={(e) => setCoupon(e.target.value)}
                       className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
@@ -658,10 +624,10 @@ export default function V3RentalSpacePage() {
                       <span>ご利用予定時間:</span>
                       <span className="font-medium text-slate-800">{hours} 時間</span>
                     </div>
-                    {coupon.trim().toUpperCase() === 'SPECIAL2026' && (
-                      <div className="flex justify-between text-emerald-600">
-                        <span>クーポン割引:</span>
-                        <span>-¥1,000</span>
+                    {isCouponApplied && (
+                      <div className="flex justify-between text-emerald-600 font-medium">
+                        <span>特別クーポン (0505) 適用:</span>
+                        <span>延長料金サービス (6時間料金適用)</span>
                       </div>
                     )}
                     <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
