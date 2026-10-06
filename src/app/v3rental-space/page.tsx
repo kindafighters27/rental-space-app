@@ -583,7 +583,7 @@ export default function V3RentalSpacePage() {
                         onChange={(e) => setEndTime(e.target.value)}
                         className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        {Array.from({ length: 15 }, (_, i) => i + 10).map((h) => (
+                        {Array.from({ length: 21 }, (_, i) => i + 10).map((h) => (
                           <option key={h} value={`${h}:00`}>{`${h}:00`}</option>
                         ))}
                       </select>
