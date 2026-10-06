@@ -69,6 +69,24 @@ export default function V3RentalSpacePage() {
   // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
   const [weekOffset, setWeekOffset] = useState(0);
 
+  // 初回マウント時に全予約を取得（重複チェック・カレンダー用）
+  useEffect(() => {
+    fetchAllBookingsForCheck();
+  }, []);
+
+  const fetchAllBookingsForCheck = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('poker_bookings')
+        .select('*');
+      if (!error && data) {
+        setAdminBookings(data);
+      }
+    } catch (err) {
+      console.error('予約データ取得エラー:', err);
+    }
+  };
+
   // 動的な日付データ生成関数（今日を基準に14日間分を表示、weekOffsetで週移動）
   const generateCalendarDays = () => {
     const days = [];
@@ -111,6 +129,87 @@ export default function V3RentalSpacePage() {
   // 各種確認モーダルの状態管理 ('kiyaku' | 'house' | null)
   const [activeModal, setActiveModal] = useState<'kiyaku' | 'house' | null>(null);
 
+  // 選択された日付の既存有効予約リストを取得
+  const getExistingBookingsForDate = (dateStr: string) => {
+    const targetBase = dateStr.split(' ')[0];
+    return adminBookings.filter((b) => {
+      if (b.status === 'cancelled') return false;
+      if (!b.date) return false;
+      const bBase = b.date.split(' ')[0];
+      return bBase === targetBase;
+    });
+  };
+
+  // 指定された開始・終了時間が既存の予約と重複していないか、および掃除時間（1時間前まで）をクリアしているかチェック
+  const checkTimeOverlap = (sDate: string, sTime: string, eTime: string, excludeId?: string) => {
+    const existing = getExistingBookingsForDate(sDate).filter((b) => b.id !== excludeId);
+    if (existing.length === 0) return null;
+
+    const newStart = parseInt(sTime.split(':')[0], 10);
+    const newEnd = parseInt(eTime.split(':')[0], 10);
+
+    for (const b of existing) {
+      const bStart = parseInt(b.start_time.split(':')[0], 10);
+      const bEnd = parseInt(b.end_time.split(':')[0], 10);
+
+      if (newStart < bStart && newEnd > (bStart - 1)) {
+        return `選択された時間帯は、${b.start_time}開始の別のご予約に対する掃除・準備時間（1時間前までの制限）と重複しています。終了時間を ${b.start_time.split(':')[0]}:00 の1時間前（${b.start_time.split(':')[0] - 1}:00）以前に設定してください。`;
+      }
+
+      if (newStart < bEnd && newEnd > bStart) {
+        return `指定された時間帯（${sTime} 〜 ${eTime}）は、すでに他のお客様のご予約（${b.start_time} 〜 ${b.end_time}）が入っているためご予約できません。`;
+      }
+    }
+    return null;
+  };
+
+  // 選択可能な開始時間リスト
+  const getAvailableStartHours = () => {
+    const existing = getExistingBookingsForDate(selectedDate);
+    const hoursList = [];
+    for (let h = 9; h <= 29; h++) {
+      let isAvailable = true;
+      for (const b of existing) {
+        const bStart = parseInt(b.start_time.split(':')[0], 10);
+        const bEnd = parseInt(b.end_time.split(':')[0], 10);
+        if (h >= bStart && h < bEnd) {
+          isAvailable = false;
+          break;
+        }
+      }
+      if (isAvailable) {
+        hoursList.push(h);
+      }
+    }
+    return hoursList;
+  };
+
+  // 選択可能な終了時間リスト
+  const getAvailableEndHours = () => {
+    const startH = parseInt(startTime.split(':')[0], 10);
+    const existing = getExistingBookingsForDate(selectedDate);
+    
+    let maxAllowedEnd = 30;
+    for (const b of existing) {
+      const bStart = parseInt(b.start_time.split(':')[0], 10);
+      if (bStart > startH) {
+        const cleaningLimit = bStart - 1;
+        if (cleaningLimit < maxAllowedEnd) {
+          maxAllowedEnd = cleaningLimit;
+        }
+      }
+    }
+
+    const endList = [];
+    for (let h = startH + 1; h <= maxAllowedEnd; h++) {
+      endList.push(h);
+    }
+    if (endList.length === 0 && startH < 30) {
+      endList.push(startH + 1);
+    }
+    return endList;
+  };
+
   // 時間計算と料金計算
   const calculatePrice = () => {
     const startHour = parseInt(startTime.split(':')[0], 10);
@@ -135,12 +234,23 @@ export default function V3RentalSpacePage() {
     setIsBookingOpen(true);
     setIsSubmitted(false);
     setErrorMessage('');
+    setStartTime('13:00');
+    setEndTime('19:00');
+    fetchAllBookingsForCheck();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMessage('');
+
+    // 重複・掃除時間チェック
+    const overlapError = checkTimeOverlap(selectedDate, startTime, endTime);
+    if (overlapError) {
+      setErrorMessage(overlapError);
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -164,29 +274,31 @@ export default function V3RentalSpacePage() {
         throw error;
       }
 
-      const emailRes = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date: selectedDate,
-          startTime: startTime,
-          endTime: endTime,
-          name: name,
-          email: email,
-          phone: phone,
-          coupon: coupon,
-          notes: notes,
-          totalPrice: price,
-        }),
-      });
-
-      if (!emailRes.ok) {
-        console.warn('メール送信APIでエラーが発生しましたが、予約保存は完了しています。');
+      // メール送信処理（APIエラーで予約保存自体が阻害されないよう安全にラップ）
+      try {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            date: selectedDate,
+            startTime: startTime,
+            endTime: endTime,
+            name: name,
+            email: email,
+            phone: phone,
+            coupon: coupon,
+            notes: notes,
+            totalPrice: price,
+          }),
+        });
+      } catch (emailErr) {
+        console.warn('メール送信APIの呼び出しに失敗しましたが、Supabaseへの予約保存は正常に完了しています。', emailErr);
       }
 
       setIsSubmitted(true);
+      fetchAllBookingsForCheck();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setErrorMessage(err.message || '予約の保存に失敗しました。');
@@ -245,6 +357,7 @@ export default function V3RentalSpacePage() {
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
       );
       alert('予約のキャンセルが完了いたしました。');
+      fetchAllBookingsForCheck();
     } catch (err: unknown) {
       alert('キャンセルの処理に失敗しました。');
     } finally {
@@ -321,6 +434,12 @@ export default function V3RentalSpacePage() {
 
   // インライン編集を保存する
   const handleSaveInlineEdit = async (id: string) => {
+    const overlapError = checkTimeOverlap(editRowData.date, editRowData.start_time, editRowData.end_time, id);
+    if (overlapError) {
+      alert(overlapError);
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const { error } = await supabase
@@ -343,6 +462,7 @@ export default function V3RentalSpacePage() {
       );
       setEditingRowId(null);
       alert('予約情報を直接更新しました。');
+      fetchAllBookingsForCheck();
     } catch (err: unknown) {
       alert('更新に失敗しました。');
     } finally {
@@ -1328,6 +1448,18 @@ export default function V3RentalSpacePage() {
                   </button>
                 </div>
 
+                {/* 既存の予約スケジュール表示 */}
+                {getExistingBookingsForDate(selectedDate).length > 0 && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs space-y-1">
+                    <span className="font-bold text-amber-900 block mb-1">⚠️ この日の既存のご予約状況（掃除時間1時間含む）:</span>
+                    {getExistingBookingsForDate(selectedDate).map((b, idx) => (
+                      <div key={idx} className="text-amber-800">
+                        • {b.start_time} 〜 {b.end_time} （{b.name}様）※直前予約は {b.start_time.split(':')[0] - 1}:00 まで選択可能
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {errorMessage && (
                     <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-lg text-xs font-semibold">
@@ -1379,10 +1511,17 @@ export default function V3RentalSpacePage() {
                       <label className="block text-xs font-bold text-slate-700 mb-1">開始時間</label>
                       <select
                         value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
+                        onChange={(e) => {
+                          setStartTime(e.target.value);
+                          const newStartH = parseInt(e.target.value.split(':')[0], 10);
+                          const currentEndH = parseInt(endTime.split(':')[0], 10);
+                          if (currentEndH <= newStartH) {
+                            setEndTime(`${newStartH + 1}:00`);
+                          }
+                        }}
                         className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        {Array.from({ length: 15 }, (_, i) => i + 9).map((h) => (
+                        {getAvailableStartHours().map((h) => (
                           <option key={h} value={`${h}:00`}>{`${h}:00`}</option>
                         ))}
                       </select>
@@ -1394,7 +1533,7 @@ export default function V3RentalSpacePage() {
                         onChange={(e) => setEndTime(e.target.value)}
                         className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        {Array.from({ length: 21 }, (_, i) => i + 10).map((h) => (
+                        {getAvailableEndHours().map((h) => (
                           <option key={h} value={`${h}:00`}>{`${h}:00`}</option>
                         ))}
                       </select>
