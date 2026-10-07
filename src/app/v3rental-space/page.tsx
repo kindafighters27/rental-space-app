@@ -14,6 +14,7 @@ export default function V3RentalSpacePage() {
   const [phone, setPhone] = useState('');
   const [coupon, setCoupon] = useState('');
   const [notes, setNotes] = useState('');
+  const [agreedToRules, setAgreedToRules] = useState(false); // 規約同意のチェック状態
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -249,6 +250,7 @@ export default function V3RentalSpacePage() {
     setSelectedDate(dateStr);
     setIsBookingOpen(true);
     setIsSubmitted(false);
+    setAgreedToRules(false);
     setErrorMessage('');
     setStartTime('13:00');
     setEndTime('19:00');
@@ -257,6 +259,11 @@ export default function V3RentalSpacePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreedToRules) {
+      setErrorMessage('利用規約およびハウスルール（金銭賭博の禁止等）への同意が必要です。');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage('');
 
@@ -279,7 +286,7 @@ export default function V3RentalSpacePage() {
             email: email,
             phone: phone || null,
             coupon: coupon || null,
-            notes: notes || null,
+            notes: (notes ? notes + ' ' : '') + '[規約同意済み]',
             total_price: price,
             status: 'confirmed'
           }
@@ -762,7 +769,7 @@ export default function V3RentalSpacePage() {
                     </tr>
                   ) : (
                     filteredAdminBookings.map((b) => {
-                      const isConfirmed = b.notes === '確認済';
+                      const isConfirmed = b.notes === '確認済' || (b.notes && b.notes.includes('確認済'));
                       const isEditing = editingRowId === b.id;
 
                       if (isEditing) {
@@ -1642,6 +1649,22 @@ export default function V3RentalSpacePage() {
                     ></textarea>
                   </div>
 
+                  {/* 利用規約・ハウスルール同意チェックボックス追加 */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                    <label className="flex items-start space-x-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        required
+                        checked={agreedToRules}
+                        onChange={(e) => setAgreedToRules(e.target.checked)}
+                        className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="text-xs text-slate-700 leading-relaxed font-medium">
+                        <a href="/kiyaku2026.pdf" target="_blank" rel="noreferrer" className="text-emerald-700 underline font-bold">利用規約</a> および <a href="/hausururu2026_COCOKARA.pdf" target="_blank" rel="noreferrer" className="text-emerald-700 underline font-bold">ハウスルール</a>（当スペース内における金銭の賭博行為の禁止等）の内容をすべて確認し、同意します。 <span className="text-rose-500">*</span>
+                      </span>
+                    </label>
+                  </div>
+
                   <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-1 text-sm">
                     <div className="flex justify-between text-slate-600">
                       <span>ご利用予定時間:</span>
@@ -1656,8 +1679,8 @@ export default function V3RentalSpacePage() {
                   <div>
                     <button
                       type="submit"
-                      disabled={isSubmitting}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white font-bold py-3 px-4 rounded-xl transition shadow-sm"
+                      disabled={isSubmitting || !agreedToRules}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white font-bold py-3 px-4 rounded-xl transition shadow-sm cursor-pointer"
                     >
                       {isSubmitting ? '送信中...' : '予約を確定する'}
                     </button>
