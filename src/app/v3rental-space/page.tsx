@@ -1287,7 +1287,7 @@ export default function V3RentalSpacePage() {
                 <span>利用規約を確認する</span>
               </a>
               <a 
-                href="/houserule2026.pdf"
+                href="/hausururu2026_COCOKARA.pdf"
                 target="_blank"
                 rel="noreferrer"
                 className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm text-center"
