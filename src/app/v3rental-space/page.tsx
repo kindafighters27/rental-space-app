@@ -150,9 +150,6 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 各種確認モーダルの状態管理 ('kiyaku' | 'house' | null)
-  const [activeModal, setActiveModal] = useState<'kiyaku' | 'house' | null>(null);
-
   // 選択された日付の既存有効予約リストを取得
   const getExistingBookingsForDate = (dateStr: string) => {
     const targetBase = dateStr.split(' ')[0];
@@ -498,14 +495,12 @@ export default function V3RentalSpacePage() {
     }));
 
     try {
-      // 1. まず該当月のレコードがすでに存在するか確認
       const { data: existingData } = await supabase
         .from('V3space_expenses')
         .select('*')
         .eq('month', month);
 
       if (existingData && existingData.length > 0) {
-        // すでに存在する場合は update
         await supabase
           .from('V3space_expenses')
           .update({
@@ -517,7 +512,6 @@ export default function V3RentalSpacePage() {
           })
           .eq('month', month);
       } else {
-        // 存在しない場合は insert
         await supabase
           .from('V3space_expenses')
           .insert([
@@ -1283,20 +1277,24 @@ export default function V3RentalSpacePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 pt-4 border-t border-slate-100">
-              <button 
-                onClick={() => setActiveModal('kiyaku')}
-                className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm"
+              <a 
+                href="/kiyaku2026.pdf"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm text-center"
               >
                 <span>📜</span>
                 <span>利用規約を確認する</span>
-              </button>
-              <button 
-                onClick={() => setActiveModal('house')}
-                className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm"
+              </a>
+              <a 
+                href="/houserule2026.pdf"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl text-xs md:text-sm font-medium flex items-center justify-center space-x-2 transition shadow-sm text-center"
               >
                 <span>📋</span>
                 <span>ハウスルールを確認する</span>
-              </button>
+              </a>
               <a 
                 href="/taishuru2026.pdf"
                 target="_blank"
@@ -1504,69 +1502,6 @@ export default function V3RentalSpacePage() {
               <button
                 onClick={() => setIsCancelModalOpen(false)}
                 className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-5 rounded-xl text-sm transition"
-              >
-                閉じる
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 利用規約 / ハウスルール モーダル */}
-      {activeModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-xl border border-slate-100 flex flex-col">
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                {activeModal === 'kiyaku' && (
-                  <>
-                    <span>📜</span>
-                    <span>COCOKARA 利用規約</span>
-                  </>
-                )}
-                {activeModal === 'house' && (
-                  <>
-                    <span>📋</span>
-                    <span>COCOKARA ハウスルール</span>
-                  </>
-                )}
-              </h3>
-              <button 
-                onClick={() => setActiveModal(null)}
-                className="text-slate-400 hover:text-slate-600 text-xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="text-sm text-slate-700 space-y-4 leading-relaxed overflow-y-auto pr-2">
-              {activeModal === 'kiyaku' && (
-                <>
-                  <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <h4 className="font-bold text-slate-900 mb-2">第1条 (貸出備品の取り扱いおよび安全管理)</h4>
-                    <ol className="list-decimal list-inside space-y-1 text-xs md:text-sm text-slate-600">
-                      <li>室内に設置されたポーカー天板等の備品は、利用者自身の責任において設置・使用・収納を行うものとします。</li>
-                      <li>天板の設置および収納作業は、怪我や事故防止のため、必ず大人2人以上で行ってください。</li>
-                    </ol>
-                  </section>
-                </>
-              )}
-
-              {activeModal === 'house' && (
-                <div className="space-y-3">
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <div className="font-bold text-emerald-800 text-xs mb-1">RULE 01</div>
-                    <div className="font-bold text-slate-900 mb-1">騒音注意</div>
-                    <p className="text-xs md:text-sm text-slate-600">近隣住民のご迷惑になりますので、出入りの際に静かに入店・退室してください。</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end sticky bottom-0 bg-white">
-              <button
-                onClick={() => setActiveModal(null)}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-6 rounded-xl text-sm transition"
               >
                 閉じる
               </button>
