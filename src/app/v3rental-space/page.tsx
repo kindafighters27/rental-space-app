@@ -996,28 +996,83 @@ export default function V3RentalSpacePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* 総売上計算 */}
-                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                    <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 総売上（有効な予約）</span>
-                    <span className="text-2xl md:text-3xl font-bold text-slate-900">
-                      ¥{adminBookings
-                        .filter((b) => matchYear(b.date, selectedYear) && b.status !== 'cancelled')
-                        .reduce((acc, b) => acc + Number(b.total_price || 0), 0)
-                        .toLocaleString()}
-                    </span>
-                  </div>
-                  {/* キャンセル損失金額計算 */}
-                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                    <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 キャンセル損失金額</span>
-                    <span className="text-2xl md:text-3xl font-bold text-rose-600">
-                      ¥{adminBookings
-                        .filter((b) => matchYear(b.date, selectedYear) && b.status === 'cancelled')
-                        .reduce((acc, b) => acc + Number(b.total_price || 0), 0)
-                        .toLocaleString()}
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const yearSales = adminBookings
+                    .filter((b) => matchYear(b.date, selectedYear) && b.status !== 'cancelled')
+                    .reduce((acc, b) => acc + Number(b.total_price || 0), 0);
+
+                  // 選択年の12ヶ月分の経費合計を計算
+                  let yearRent = 0;
+                  let yearStaff = 0;
+                  let yearDrink = 0;
+                  let yearWifi = 0;
+                  let yearEquipment = 0;
+
+                  for (let m = 1; m <= 12; m++) {
+                    const monthStr = `${selectedYear}-${m < 10 ? '0' + m : m}`;
+                    const exp = expenses[monthStr] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
+                    yearRent += Number(exp.rent || 0);
+                    yearStaff += Number(exp.staff || 0);
+                    yearDrink += Number(exp.drink || 0);
+                    yearWifi += Number(exp.wifi || 0);
+                    yearEquipment += Number(exp.equipment || 0);
+                  }
+
+                  const yearTotalExp = yearRent + yearStaff + yearDrink + yearWifi + yearEquipment;
+                  const yearProfit = yearSales - yearTotalExp;
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                          <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 総売上（有効な予約）</span>
+                          <span className="text-2xl md:text-3xl font-bold text-slate-900">
+                            ¥{yearSales.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                          <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 経費年間合計</span>
+                          <span className="text-2xl md:text-3xl font-bold text-slate-700">
+                            ¥{yearTotalExp.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="border border-emerald-200 rounded-xl p-4 bg-emerald-50/40">
+                          <span className="text-xs text-emerald-800 font-bold block mb-1">{selectedYear}年 年間総粗利（利益）</span>
+                          <span className="text-2xl md:text-3xl font-bold text-emerald-700">
+                            ¥{yearProfit.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 年間各経費の内訳表示 */}
+                      <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/30 space-y-3">
+                        <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">{selectedYear}年 各経費の年間内訳</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                          <div className="bg-white border border-slate-200 rounded-lg p-3">
+                            <span className="text-slate-500 block mb-1">賃料年間計</span>
+                            <span className="font-bold text-slate-900 text-sm">¥{yearRent.toLocaleString()}</span>
+                          </div>
+                          <div className="bg-white border border-slate-200 rounded-lg p-3">
+                            <span className="text-slate-500 block mb-1">人件費年間計</span>
+                            <span className="font-bold text-slate-900 text-sm">¥{yearStaff.toLocaleString()}</span>
+                          </div>
+                          <div className="bg-white border border-slate-200 rounded-lg p-3">
+                            <span className="text-slate-500 block mb-1">飲料購入費年間計</span>
+                            <span className="font-bold text-slate-900 text-sm">¥{yearDrink.toLocaleString()}</span>
+                          </div>
+                          <div className="bg-white border border-slate-200 rounded-lg p-3">
+                            <span className="text-slate-500 block mb-1">Wi-Fi購入費年間計</span>
+                            <span className="font-bold text-slate-900 text-sm">¥{yearWifi.toLocaleString()}</span>
+                          </div>
+                          <div className="bg-white border border-slate-200 rounded-lg p-3">
+                            <span className="text-slate-500 block mb-1">設備購入費年間計</span>
+                            <span className="font-bold text-slate-900 text-sm">¥{yearEquipment.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* 月別売上・経費・粗利管理 */}
