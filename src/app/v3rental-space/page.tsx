@@ -749,23 +749,24 @@ export default function V3RentalSpacePage() {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
                     <th className="p-3">予約日</th>
-                    <th className="p-3">スペース</th>
-                    <th className="p-3">お名前</th>
-                    <th className="p-3">メールアドレス</th>
                     <th className="p-3">時間</th>
-                    <th className="p-3">ステータス / 確認</th>
                     <th className="p-3 text-right">金額</th>
+                    <th className="p-3">名前</th>
+                    <th className="p-3">メールアドレス</th>
+                    <th className="p-3">スペース</th>
+                    <th className="p-3">ステータス</th>
+                    <th className="p-3">確認</th>
                     <th className="p-3 text-center">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {isLoadingAdminBookings ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-400">読み込み中...</td>
+                      <td colSpan={9} className="p-8 text-center text-slate-400">読み込み中...</td>
                     </tr>
                   ) : filteredAdminBookings.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-400">該当する予約が見つかりませんでした。</td>
+                      <td colSpan={9} className="p-8 text-center text-slate-400">該当する予約が見つかりませんでした。</td>
                     </tr>
                   ) : (
                     filteredAdminBookings.map((b) => {
@@ -783,7 +784,29 @@ export default function V3RentalSpacePage() {
                                 className="w-28 border border-slate-300 rounded p-1 text-xs bg-white"
                               />
                             </td>
-                            <td className="p-2 text-slate-600 text-xs">メインルーム</td>
+                            <td className="p-2 whitespace-nowrap">
+                              <input
+                                type="text"
+                                value={editRowData.start_time}
+                                onChange={(e) => setEditRowData({ ...editRowData, start_time: e.target.value })}
+                                className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
+                              />
+                              -
+                              <input
+                                type="text"
+                                value={editRowData.end_time}
+                                onChange={(e) => setEditRowData({ ...editRowData, end_time: e.target.value })}
+                                className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
+                              />
+                            </td>
+                            <td className="p-2 text-right">
+                              <input
+                                type="number"
+                                value={editRowData.total_price}
+                                onChange={(e) => setEditRowData({ ...editRowData, total_price: Number(e.target.value) })}
+                                className="w-20 border border-slate-300 rounded p-1 text-xs bg-white text-right"
+                              />
+                            </td>
                             <td className="p-2">
                               <input
                                 type="text"
@@ -800,21 +823,7 @@ export default function V3RentalSpacePage() {
                                 className="w-36 border border-slate-300 rounded p-1 text-xs bg-white font-mono"
                               />
                             </td>
-                            <td className="p-2 whitespace-nowrap">
-                              <input
-                                type="text"
-                                value={editRowData.start_time}
-                                onChange={(e) => setEditRowData({ ...editRowData, start_time: e.target.value })}
-                                className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
-                              />
-                              -
-                              <input
-                                type="text"
-                                value={editRowData.end_time}
-                                onChange={(e) => setEditRowData({ ...editRowData, end_time: e.target.value })}
-                                className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
-                              />
-                            </td>
+                            <td className="p-2 text-slate-600 text-xs">COCOKARA メインルーム</td>
                             <td className="p-2">
                               <select
                                 value={editRowData.status}
@@ -825,14 +834,7 @@ export default function V3RentalSpacePage() {
                                 <option value="cancelled">キャンセル</option>
                               </select>
                             </td>
-                            <td className="p-2 text-right">
-                              <input
-                                type="number"
-                                value={editRowData.total_price}
-                                onChange={(e) => setEditRowData({ ...editRowData, total_price: Number(e.target.value) })}
-                                className="w-20 border border-slate-300 rounded p-1 text-xs bg-white text-right"
-                              />
-                            </td>
+                            <td className="p-2 text-center">-</td>
                             <td className="p-2 text-center whitespace-nowrap space-x-1">
                               <button
                                 type="button"
@@ -857,30 +859,30 @@ export default function V3RentalSpacePage() {
                       return (
                         <tr key={b.id} className="hover:bg-slate-50/80 transition">
                           <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{b.date}</td>
-                          <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
-                          <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{b.name} 様</td>
-                          <td className="p-3 text-slate-600 font-mono text-xs">{b.email}</td>
                           <td className="p-3 text-slate-700 whitespace-nowrap">{b.start_time} - {b.end_time}</td>
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="flex items-center space-x-2">
-                              {b.status === 'cancelled' ? (
-                                <span className="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold">キャンセル済み</span>
-                              ) : (
-                                <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold">仮予約</span>
-                              )}
-                              <label className="flex items-center space-x-1 cursor-pointer text-xs text-slate-600">
-                                <input
-                                  type="checkbox"
-                                  checked={isConfirmed}
-                                  onChange={() => handleToggleConfirmed(b.id, isConfirmed)}
-                                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                />
-                                <span>確認済</span>
-                              </label>
-                            </div>
-                          </td>
                           <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">
                             ¥{Number(b.total_price || 0).toLocaleString()}
+                          </td>
+                          <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{b.name} 様</td>
+                          <td className="p-3 text-slate-600 font-mono text-xs">{b.email}</td>
+                          <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
+                          <td className="p-3 whitespace-nowrap">
+                            {b.status === 'cancelled' ? (
+                              <span className="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold">キャンセル済み</span>
+                            ) : (
+                              <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold">仮予約</span>
+                            )}
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            <label className="flex items-center space-x-1 cursor-pointer text-xs text-slate-600">
+                              <input
+                                type="checkbox"
+                                checked={isConfirmed}
+                                onChange={() => handleToggleConfirmed(b.id, isConfirmed)}
+                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                              />
+                              <span>確認済</span>
+                            </label>
                           </td>
                           <td className="p-3 text-center whitespace-nowrap">
                             <button
@@ -1063,12 +1065,12 @@ export default function V3RentalSpacePage() {
                           <thead>
                             <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
                               <th className="p-3">予約日</th>
-                              <th className="p-3">スペース</th>
-                              <th className="p-3">お名前</th>
-                              <th className="p-3">メールアドレス</th>
                               <th className="p-3">時間</th>
-                              <th className="p-3">ステータス</th>
                               <th className="p-3 text-right">金額</th>
+                              <th className="p-3">名前</th>
+                              <th className="p-3">メールアドレス</th>
+                              <th className="p-3">スペース</th>
+                              <th className="p-3">ステータス</th>
                               <th className="p-3 text-center">操作</th>
                             </tr>
                           </thead>
@@ -1092,7 +1094,29 @@ export default function V3RentalSpacePage() {
                                           className="w-28 border border-slate-300 rounded p-1 text-xs bg-white"
                                         />
                                       </td>
-                                      <td className="p-2 text-slate-600 text-xs">メインルーム</td>
+                                      <td className="p-2 whitespace-nowrap">
+                                        <input
+                                          type="text"
+                                          value={editRowData.start_time}
+                                          onChange={(e) => setEditRowData({ ...editRowData, start_time: e.target.value })}
+                                          className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
+                                        />
+                                        -
+                                        <input
+                                          type="text"
+                                          value={editRowData.end_time}
+                                          onChange={(e) => setEditRowData({ ...editRowData, end_time: e.target.value })}
+                                          className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
+                                        />
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <input
+                                          type="number"
+                                          value={editRowData.total_price}
+                                          onChange={(e) => setEditRowData({ ...editRowData, total_price: Number(e.target.value) })}
+                                          className="w-20 border border-slate-300 rounded p-1 text-xs bg-white text-right"
+                                        />
+                                      </td>
                                       <td className="p-2">
                                         <input
                                           type="text"
@@ -1109,21 +1133,7 @@ export default function V3RentalSpacePage() {
                                           className="w-36 border border-slate-300 rounded p-1 text-xs bg-white font-mono"
                                         />
                                       </td>
-                                      <td className="p-2 whitespace-nowrap">
-                                        <input
-                                          type="text"
-                                          value={editRowData.start_time}
-                                          onChange={(e) => setEditRowData({ ...editRowData, start_time: e.target.value })}
-                                          className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
-                                        />
-                                        -
-                                        <input
-                                          type="text"
-                                          value={editRowData.end_time}
-                                          onChange={(e) => setEditRowData({ ...editRowData, end_time: e.target.value })}
-                                          className="w-14 border border-slate-300 rounded p-1 text-xs bg-white"
-                                        />
-                                      </td>
+                                      <td className="p-2 text-slate-600 text-xs">COCOKARA メインルーム</td>
                                       <td className="p-2">
                                         <select
                                           value={editRowData.status}
@@ -1133,14 +1143,6 @@ export default function V3RentalSpacePage() {
                                           <option value="confirmed">有効</option>
                                           <option value="cancelled">キャンセル</option>
                                         </select>
-                                      </td>
-                                      <td className="p-2 text-right">
-                                        <input
-                                          type="number"
-                                          value={editRowData.total_price}
-                                          onChange={(e) => setEditRowData({ ...editRowData, total_price: Number(e.target.value) })}
-                                          className="w-20 border border-slate-300 rounded p-1 text-xs bg-white text-right"
-                                        />
                                       </td>
                                       <td className="p-2 text-center whitespace-nowrap space-x-1">
                                         <button
@@ -1166,10 +1168,11 @@ export default function V3RentalSpacePage() {
                                 return (
                                   <tr key={b.id} className="hover:bg-slate-50 transition">
                                     <td className="p-3 font-medium text-slate-900 whitespace-nowrap">{b.date}</td>
-                                    <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
+                                    <td className="p-3 text-slate-700 whitespace-nowrap">{b.start_time} - {b.end_time}</td>
+                                    <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">¥{Number(b.total_price || 0).toLocaleString()}</td>
                                     <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{b.name} 様</td>
                                     <td className="p-3 text-slate-600 font-mono text-xs">{b.email}</td>
-                                    <td className="p-3 text-slate-700 whitespace-nowrap">{b.start_time} - {b.end_time}</td>
+                                    <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
                                     <td className="p-3 whitespace-nowrap">
                                       {b.status === 'cancelled' ? (
                                         <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded font-bold">キャンセル</span>
@@ -1177,7 +1180,6 @@ export default function V3RentalSpacePage() {
                                         <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">有効</span>
                                       )}
                                     </td>
-                                    <td className="p-3 text-right font-bold text-slate-900 whitespace-nowrap">¥{Number(b.total_price || 0).toLocaleString()}</td>
                                     <td className="p-3 text-center whitespace-nowrap">
                                       <button
                                         type="button"
