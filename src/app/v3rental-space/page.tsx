@@ -289,7 +289,7 @@ export default function V3RentalSpacePage() {
             notes: notes || null,
             total_price: price,
             status: 'confirmed',
-            confirmed: false // 新規予約時は初期値未確認
+            confirmed: false
           }
         ]);
 
@@ -1256,7 +1256,7 @@ export default function V3RentalSpacePage() {
             </p>
             <div className="overflow-hidden rounded-xl bg-slate-200 aspect-video relative group">
               <img 
-                src="/space2.JPG" 
+                src="/space3.JPG" 
                 alt="COCOKARA 室内 ポーカーテーブル" 
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
