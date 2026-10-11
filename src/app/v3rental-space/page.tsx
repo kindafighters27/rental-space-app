@@ -38,6 +38,10 @@ export default function V3RentalSpacePage() {
   const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'valid' | 'cancelled'>('all');
   const [adminViewMode, setAdminViewMode] = useState<'bookings' | 'customers' | 'sales'>('bookings');
 
+  // テーブルのソート状態管理
+  const [sortField, setSortField] = useState<string>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
   // 売上管理用の状態（V3space_expenses テーブルと完全連動）
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedMonth, setSelectedMonth] = useState('2026-10');
@@ -578,7 +582,17 @@ export default function V3RentalSpacePage() {
     return parsed.yearMonth === monthStr;
   };
 
-  // フィルタリング処理（管理者画面）
+  // ソート切り替えハンドラー
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // フィルタリングおよびソート処理（管理者画面）
   const filteredAdminBookings = adminBookings.filter((b) => {
     if (adminStatusFilter === 'valid' && b.status === 'cancelled') return false;
     if (adminStatusFilter === 'cancelled' && b.status !== 'cancelled') return false;
@@ -592,6 +606,23 @@ export default function V3RentalSpacePage() {
     }
 
     return true;
+  }).sort((a, b) => {
+    let valA = a[sortField];
+    let valB = b[sortField];
+
+    if (valA === null || valA === undefined) valA = '';
+    if (valB === null || valB === undefined) valB = '';
+
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
+    }
+
+    const strA = String(valA).toLowerCase();
+    const strB = String(valB).toLowerCase();
+
+    if (strA < strB) return sortDirection === 'asc' ? -1 : 1;
+    if (strA > strB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
   });
 
   return (
@@ -749,14 +780,30 @@ export default function V3RentalSpacePage() {
               <table className="w-full text-left text-xs md:text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
-                    <th className="p-3">予約日</th>
-                    <th className="p-3">時間</th>
-                    <th className="p-3 text-right">金額</th>
-                    <th className="p-3">名前</th>
-                    <th className="p-3">メールアドレス</th>
-                    <th className="p-3">スペース</th>
-                    <th className="p-3">ステータス</th>
-                    <th className="p-3">確認</th>
+                    <th onClick={() => handleSort('date')} className="p-3 cursor-pointer hover:bg-slate-100 transition select-none">
+                      予約日 {sortField === 'date' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('start_time')} className="p-3 cursor-pointer hover:bg-slate-100 transition select-none">
+                      時間 {sortField === 'start_time' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('total_price')} className="p-3 text-right cursor-pointer hover:bg-slate-100 transition select-none">
+                      金額 {sortField === 'total_price' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('name')} className="p-3 cursor-pointer hover:bg-slate-100 transition select-none">
+                      名前 {sortField === 'name' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('email')} className="p-3 cursor-pointer hover:bg-slate-100 transition select-none">
+                      メールアドレス {sortField === 'email' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('space')} className="p-3 cursor-pointer hover:bg-slate-100 transition select-none">
+                      スペース {sortField === 'space' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('status')} className="p-3 cursor-pointer hover:bg-slate-100 transition select-none">
+                      ステータス {sortField === 'status' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    <th onClick={() => handleSort('confirmed')} className="p-3 cursor-pointer hover:bg-slate-100 transition select-none">
+                      確認 {sortField === 'confirmed' ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </th>
                     <th className="p-3 text-center">操作</th>
                   </tr>
                 </thead>
