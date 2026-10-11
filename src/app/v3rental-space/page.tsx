@@ -286,9 +286,10 @@ export default function V3RentalSpacePage() {
             email: email,
             phone: phone || null,
             coupon: coupon || null,
-            notes: (notes ? notes + ' ' : '') + '[規約同意済み]',
+            notes: notes || null,
             total_price: price,
-            status: 'confirmed'
+            status: 'confirmed',
+            confirmed: false // 新規予約時は初期値未確認
           }
         ]);
 
@@ -420,19 +421,19 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 管理者確認チェックボックス切り替え
+  // 管理者確認チェックボックス切り替え（新カラム confirmed に永続保存）
   const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
     try {
-      const newNotes = currentConfirmed ? null : '確認済';
+      const newConfirmed = !currentConfirmed;
       const { error } = await supabase
         .from('poker_bookings')
-        .update({ notes: newNotes })
+        .update({ confirmed: newConfirmed })
         .eq('id', id);
 
       if (error) throw error;
 
       setAdminBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, notes: newNotes } : b))
+        prev.map((b) => (b.id === id ? { ...b, confirmed: newConfirmed } : b))
       );
     } catch (err) {
       console.error('確認ステータス更新エラー:', err);
@@ -770,7 +771,7 @@ export default function V3RentalSpacePage() {
                     </tr>
                   ) : (
                     filteredAdminBookings.map((b) => {
-                      const isConfirmed = b.notes === '確認済' || (b.notes && b.notes.includes('確認済'));
+                      const isConfirmed = Boolean(b.confirmed);
                       const isEditing = editingRowId === b.id;
 
                       if (isEditing) {
