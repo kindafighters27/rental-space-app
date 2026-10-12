@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function V3RentalSpacePage() {
+  // ハイドレーションエラー防止用のマウント状態管理
+  const [isMounted, setIsMounted] = useState(false);
+
   // 予約モーダル・フォームの状態管理
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
@@ -74,8 +77,9 @@ export default function V3RentalSpacePage() {
   // カレンダーの表示週管理（0 = 当週, 1 = 1週先, 2 = 2週先, 3 = 3週先 ※最大1ヶ月分）
   const [weekOffset, setWeekOffset] = useState(0);
 
-  // 初回マウント時に全予約および経費データを取得
+  // 初回マウント時に全予約および経費データを取得、isMountedをtrueに設定
   useEffect(() => {
+    setIsMounted(true);
     fetchAllBookingsForCheck();
     fetchExpensesFromSupabase();
   }, []);
@@ -429,7 +433,6 @@ export default function V3RentalSpacePage() {
   // 管理者確認チェックボックス切り替え（新カラム confirmed に永続保存）
   const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
     const newConfirmed = !currentConfirmed;
-    // 即座にローカルステートを楽観的更新
     setAdminBookings((prev) =>
       prev.map((b) => (b.id === id ? { ...b, confirmed: newConfirmed } : b))
     );
@@ -486,7 +489,6 @@ export default function V3RentalSpacePage() {
 
       if (error) throw error;
 
-      // 楽観的更新
       setAdminBookings((prev) =>
         prev.map((b) => (b.id === id ? { ...b, ...editRowData } : b))
       );
@@ -628,6 +630,11 @@ export default function V3RentalSpacePage() {
     if (strA > strB) return sortDirection === 'asc' ? 1 : -1;
     return 0;
   });
+
+  // マウント前は空のローディングプレースホルダーを返してハイドレーションエラーを完全に防止
+  if (!isMounted) {
+    return <div className="min-h-screen bg-slate-100 font-sans text-slate-800"></div>;
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 pb-12">
