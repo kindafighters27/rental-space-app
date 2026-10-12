@@ -84,7 +84,8 @@ export default function V3RentalSpacePage() {
     try {
       const { data, error } = await supabase
         .from('poker_bookings')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
       if (!error && data) {
         setAdminBookings(data);
       }
@@ -427,20 +428,22 @@ export default function V3RentalSpacePage() {
 
   // 管理者確認チェックボックス切り替え（新カラム confirmed に永続保存）
   const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
+    const newConfirmed = !currentConfirmed;
+    // 即座にローカルステートを楽観的更新
+    setAdminBookings((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, confirmed: newConfirmed } : b))
+    );
     try {
-      const newConfirmed = !currentConfirmed;
       const { error } = await supabase
         .from('poker_bookings')
         .update({ confirmed: newConfirmed })
         .eq('id', id);
 
       if (error) throw error;
-
-      setAdminBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, confirmed: newConfirmed } : b))
-      );
+      await fetchAllBookingsForCheck();
     } catch (err) {
       console.error('確認ステータス更新エラー:', err);
+      fetchAllBookingsForCheck();
     }
   };
 
@@ -483,12 +486,13 @@ export default function V3RentalSpacePage() {
 
       if (error) throw error;
 
+      // 楽観的更新
       setAdminBookings((prev) =>
         prev.map((b) => (b.id === id ? { ...b, ...editRowData } : b))
       );
       setEditingRowId(null);
+      await fetchAllBookingsForCheck();
       alert('予約情報を直接更新しました。売上管理・顧客リスト・Supabaseへ反映されました。');
-      fetchAllBookingsForCheck();
     } catch (err: unknown) {
       alert('更新に失敗しました。');
     } finally {
