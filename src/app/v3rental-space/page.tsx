@@ -1121,46 +1121,71 @@ export default function V3RentalSpacePage() {
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
                           <span className="text-xs text-slate-500 block mb-1">賃料</span>
                           <input
-                            type="number"
-                            value={mExp.rent}
-                            onChange={(e) => handleExpenseChange(selectedMonth, 'rent', Number(e.target.value))}
-                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                            type="text"
+                            value={mExp.rent === 0 ? '' : Number(mExp.rent).toLocaleString()}
+                            onChange={(e) => {
+                              const rawVal = e.target.value.replace(/,/g, '');
+                              const numVal = rawVal === '' ? 0 : Number(rawVal);
+                              if (!isNaN(numVal)) handleExpenseChange(selectedMonth, 'rent', numVal);
+                            }}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-right"
+                            placeholder="0"
                           />
                         </div>
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
                           <span className="text-xs text-slate-500 block mb-1">人件費</span>
                           <input
-                            type="number"
-                            value={mExp.staff}
-                            onChange={(e) => handleExpenseChange(selectedMonth, 'staff', Number(e.target.value))}
-                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                            type="text"
+                            value={mExp.staff === 0 ? '' : Number(mExp.staff).toLocaleString()}
+                            onChange={(e) => {
+                              const rawVal = e.target.value.replace(/,/g, '');
+                              const numVal = rawVal === '' ? 0 : Number(rawVal);
+                              if (!isNaN(numVal)) handleExpenseChange(selectedMonth, 'staff', numVal);
+                            }}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-right"
+                            placeholder="0"
                           />
                         </div>
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
                           <span className="text-xs text-slate-500 block mb-1">飲料購入費</span>
                           <input
-                            type="number"
-                            value={mExp.drink}
-                            onChange={(e) => handleExpenseChange(selectedMonth, 'drink', Number(e.target.value))}
-                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                            type="text"
+                            value={mExp.drink === 0 ? '' : Number(mExp.drink).toLocaleString()}
+                            onChange={(e) => {
+                              const rawVal = e.target.value.replace(/,/g, '');
+                              const numVal = rawVal === '' ? 0 : Number(rawVal);
+                              if (!isNaN(numVal)) handleExpenseChange(selectedMonth, 'drink', numVal);
+                            }}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-right"
+                            placeholder="0"
                           />
                         </div>
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
                           <span className="text-xs text-slate-500 block mb-1">Wi-Fi購入費 (新規)</span>
                           <input
-                            type="number"
-                            value={mExp.wifi}
-                            onChange={(e) => handleExpenseChange(selectedMonth, 'wifi', Number(e.target.value))}
-                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                            type="text"
+                            value={mExp.wifi === 0 ? '' : Number(mExp.wifi).toLocaleString()}
+                            onChange={(e) => {
+                              const rawVal = e.target.value.replace(/,/g, '');
+                              const numVal = rawVal === '' ? 0 : Number(rawVal);
+                              if (!isNaN(numVal)) handleExpenseChange(selectedMonth, 'wifi', numVal);
+                            }}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-right"
+                            placeholder="0"
                           />
                         </div>
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
                           <span className="text-xs text-slate-500 block mb-1">設備購入費</span>
                           <input
-                            type="number"
-                            value={mExp.equipment}
-                            onChange={(e) => handleExpenseChange(selectedMonth, 'equipment', Number(e.target.value))}
-                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white"
+                            type="text"
+                            value={mExp.equipment === 0 ? '' : Number(mExp.equipment).toLocaleString()}
+                            onChange={(e) => {
+                              const rawVal = e.target.value.replace(/,/g, '');
+                              const numVal = rawVal === '' ? 0 : Number(rawVal);
+                              if (!isNaN(numVal)) handleExpenseChange(selectedMonth, 'equipment', numVal);
+                            }}
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-right"
+                            placeholder="0"
                           />
                         </div>
                       </div>
