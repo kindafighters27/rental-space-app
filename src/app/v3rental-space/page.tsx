@@ -284,7 +284,6 @@ export default function V3RentalSpacePage() {
     }
 
     try {
-      // 予約時は一律でステータス「confirmed」（仮予約確定）として登録
       const { error } = await supabase
         .from('poker_bookings')
         .insert([
@@ -372,7 +371,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 予約キャンセル処理（ユーザー用：キャンセル時は status を 'cancelled' に更新）
+  // 予約キャンセル処理（ユーザー用：Supabaseの status を 'cancelled' に確実に更新）
   const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('本当にこの予約をキャンセルしますか？')) return;
 
@@ -443,7 +442,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 管理者確認チェックボックス切り替え（お客様へのご連絡後にチェックを入れるための永続保存）
+  // 管理者確認チェックボックス切り替え（新カラム confirmed に永続保存）
   const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
     const newConfirmed = !currentConfirmed;
     setAdminBookings((prev) =>
