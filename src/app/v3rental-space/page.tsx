@@ -284,6 +284,7 @@ export default function V3RentalSpacePage() {
     }
 
     try {
+      // 予約時は一律でステータス「confirmed」（仮予約確定）として登録
       const { error } = await supabase
         .from('poker_bookings')
         .insert([
@@ -371,7 +372,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 予約キャンセル処理（ユーザー用：キャンセル後に即座にSupabaseから最新データを再取得して画面反映）
+  // 予約キャンセル処理（ユーザー用：キャンセル時は status を 'cancelled' に更新）
   const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('本当にこの予約をキャンセルしますか？')) return;
 
@@ -442,7 +443,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 管理者確認チェックボックス切り替え（新カラム confirmed に永続保存）
+  // 管理者確認チェックボックス切り替え（お客様へのご連絡後にチェックを入れるための永続保存）
   const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
     const newConfirmed = !currentConfirmed;
     setAdminBookings((prev) =>
@@ -901,7 +902,7 @@ export default function V3RentalSpacePage() {
                                 onChange={(e) => setEditRowData({ ...editRowData, status: e.target.value })}
                                 className="border border-slate-300 rounded p-1 text-xs bg-white"
                               >
-                                <option value="confirmed">有効</option>
+                                <option value="confirmed">仮予約</option>
                                 <option value="cancelled">キャンセル</option>
                               </select>
                             </td>
@@ -939,7 +940,7 @@ export default function V3RentalSpacePage() {
                           <td className="p-3 text-slate-600 whitespace-nowrap">COCOKARA メインルーム</td>
                           <td className="p-3 whitespace-nowrap">
                             {b.status === 'cancelled' ? (
-                              <span className="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold">キャンセル済み</span>
+                              <span className="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold">キャンセル</span>
                             ) : (
                               <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold">仮予約</span>
                             )}
@@ -1291,7 +1292,7 @@ export default function V3RentalSpacePage() {
                                           onChange={(e) => setEditRowData({ ...editRowData, status: e.target.value })}
                                           className="border border-slate-300 rounded p-1 text-xs bg-white"
                                         >
-                                          <option value="confirmed">有効</option>
+                                          <option value="confirmed">仮予約</option>
                                           <option value="cancelled">キャンセル</option>
                                         </select>
                                       </td>
@@ -1328,7 +1329,7 @@ export default function V3RentalSpacePage() {
                                       {b.status === 'cancelled' ? (
                                         <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded font-bold">キャンセル</span>
                                       ) : (
-                                        <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">有効</span>
+                                        <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-bold">仮予約</span>
                                       )}
                                     </td>
                                     <td className="p-3 text-center whitespace-nowrap">
@@ -1635,9 +1636,9 @@ export default function V3RentalSpacePage() {
                       </div>
                       <div>
                         {b.status === 'cancelled' ? (
-                          <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-semibold">キャンセル済み</span>
+                          <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded-full font-semibold">キャンセル</span>
                         ) : (
-                          <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-semibold">予約確定</span>
+                          <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-semibold">仮予約</span>
                         )}
                       </div>
                     </div>
