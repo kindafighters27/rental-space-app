@@ -160,7 +160,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 選択された日付の既存有効予約リストを取得
+  // 選択された日付の既存有効予約リストを取得（キャンセル済みは確実に除外）
   const getExistingBookingsForDate = (dateStr: string) => {
     const targetBase = dateStr.split(' ')[0];
     return adminBookings.filter((b) => {
@@ -386,7 +386,7 @@ export default function V3RentalSpacePage() {
 
       alert('予約のキャンセルが完了いたしました。');
       
-      // 管理者側の予約一覧を更新
+      // 管理者側の予約一覧および重複チェック用データを即座に更新
       await fetchAllBookingsForCheck();
 
       // ユーザー確認モーダルの検索結果リストも最新データで再取得して即時反映
