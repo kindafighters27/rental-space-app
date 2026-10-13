@@ -342,8 +342,8 @@ export default function V3RentalSpacePage() {
   };
 
   // 予約検索処理（ユーザー用）
-  const handleSearchBookings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearchBookings = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!searchEmail.trim()) return;
 
     setIsSearching(true);
@@ -371,7 +371,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 予約キャンセル処理（ユーザー用）
+  // 予約キャンセル処理（ユーザー用：キャンセル後に即座にSupabaseから最新データを再取得して画面反映）
   const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('本当にこの予約をキャンセルしますか？')) return;
 
@@ -384,11 +384,23 @@ export default function V3RentalSpacePage() {
 
       if (error) throw error;
 
-      setUserBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
-      );
       alert('予約のキャンセルが完了いたしました。');
-      fetchAllBookingsForCheck();
+      
+      // 管理者側の予約一覧を更新
+      await fetchAllBookingsForCheck();
+
+      // ユーザー確認モーダルの検索結果リストも最新データで再取得して即時反映
+      if (searchEmail.trim()) {
+        const { data: updatedData } = await supabase
+          .from('poker_bookings')
+          .select('*')
+          .eq('email', searchEmail.trim())
+          .order('created_at', { ascending: false });
+
+        if (updatedData) {
+          setUserBookings(updatedData);
+        }
+      }
     } catch (err: unknown) {
       alert('キャンセルの処理に失敗しました。');
     } finally {
