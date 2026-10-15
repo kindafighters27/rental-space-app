@@ -121,6 +121,17 @@ export default function V3RentalSpacePage() {
     }
   };
 
+  // 選択された日付の既存有効予約リストを取得（キャンセル済みは確実に除外）
+  const getExistingBookingsForDate = (dateStr: string) => {
+    const targetBase = dateStr.split(' ')[0];
+    return adminBookings.filter((b) => {
+      if (b.status === 'cancelled') return false;
+      if (!b.date) return false;
+      const bBase = b.date.split(' ')[0];
+      return bBase === targetBase;
+    });
+  };
+
   // 動的な日付データ生成関数（今日を基準に14日間分を表示、weekOffsetで週移動）
   const generateCalendarDays = () => {
     const days = [];
@@ -137,10 +148,15 @@ export default function V3RentalSpacePage() {
       const month = targetDate.getMonth() + 1;
       const date = targetDate.getDate();
       const dayOfWeek = dayNames[targetDate.getDay()];
+      const dateStr = `${month}-${date} (${dayOfWeek})`;
+
+      // 該当する日に有効な予約が1件以上ある場合は「残りわずか」、ない場合は「空きあり」
+      const existing = getExistingBookingsForDate(dateStr);
+      const statusText = existing.length > 0 ? '残りわずか' : '空きあり';
 
       days.push({
-        date: `${month}-${date} (${dayOfWeek})`,
-        status: '空きあり'
+        date: dateStr,
+        status: statusText
       });
     }
     return days;
@@ -158,17 +174,6 @@ export default function V3RentalSpacePage() {
     if (weekOffset > 0) {
       setWeekOffset((prev) => prev - 1);
     }
-  };
-
-  // 選択された日付の既存有効予約リストを取得（キャンセル済みは確実に除外）
-  const getExistingBookingsForDate = (dateStr: string) => {
-    const targetBase = dateStr.split(' ')[0];
-    return adminBookings.filter((b) => {
-      if (b.status === 'cancelled') return false;
-      if (!b.date) return false;
-      const bBase = b.date.split(' ')[0];
-      return bBase === targetBase;
-    });
   };
 
   // 指定された開始・終了時間が既存の予約と重複していないかチェック
@@ -371,7 +376,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 予約キャンセル処理（ユーザー用：Supabaseの status を 'cancelled' に確実に更新）
+  // 予約キャンセル処理（ユーザー用）
   const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('本当にこの予約をキャンセルしますか？')) return;
 
@@ -442,7 +447,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 管理者確認チェックボックス切り替え（新カラム confirmed に永続保存）
+  // 管理者確認チェックボックス切り替え
   const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
     const newConfirmed = !currentConfirmed;
     setAdminBookings((prev) =>
@@ -476,7 +481,7 @@ export default function V3RentalSpacePage() {
     });
   };
 
-  // インライン編集を保存する（Supabase、売上管理、顧客リストの3か所に完全連動反映）
+  // インライン編集を保存する
   const handleSaveInlineEdit = async (id: string) => {
     const overlapError = checkTimeOverlap(editRowData.date, editRowData.start_time, editRowData.end_time, id);
     if (overlapError) {
@@ -514,7 +519,7 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 経費入力変更ハンドラー（V3space_expenses テーブルに安全に保存・更新）
+  // 経費入力変更ハンドラー
   const handleExpenseChange = async (month: string, field: string, val: number) => {
     const currentExp = expenses[month] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
     const updatedMonthExp = { ...currentExp, [field]: val };
@@ -1024,7 +1029,6 @@ export default function V3RentalSpacePage() {
                     .filter((b) => matchYear(b.date, selectedYear) && b.status !== 'cancelled')
                     .reduce((acc, b) => acc + Number(b.total_price || 0), 0);
 
-                  // 選択年の12ヶ月分の経費合計を計算
                   let yearRent = 0;
                   let yearStaff = 0;
                   let yearDrink = 0;
@@ -1067,7 +1071,6 @@ export default function V3RentalSpacePage() {
                         </div>
                       </div>
 
-                      {/* 年間各経費の内訳表示 */}
                       <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/30 space-y-3">
                         <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">{selectedYear}年 各経費の年間内訳</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
@@ -1202,7 +1205,6 @@ export default function V3RentalSpacePage() {
                         </div>
                       </div>
 
-                      {/* 経費合計・月間粗利バー */}
                       <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm">
                         <span className="font-bold text-slate-700">経費合計: ¥{totalExp.toLocaleString()}</span>
                         <span className="font-bold text-slate-900">
@@ -1210,7 +1212,6 @@ export default function V3RentalSpacePage() {
                         </span>
                       </div>
 
-                      {/* 選択月の予約一覧テーブル */}
                       <div className="overflow-x-auto pt-2">
                         <table className="w-full text-left text-xs md:text-sm border-collapse">
                           <thead>
@@ -1501,17 +1502,29 @@ export default function V3RentalSpacePage() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
-              {calendarDays.map((item, idx) => (
-                <div key={idx} className="border border-emerald-200 bg-emerald-50/30 rounded-xl p-2.5 text-center flex flex-col justify-between hover:bg-emerald-50/60 transition">
-                  <span className="text-xs font-bold text-slate-700 mb-1.5 block">{item.date}</span>
-                  <button
-                    onClick={() => handleOpenBooking(item.date)}
-                    className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold py-1.5 px-2 rounded-lg transition"
-                  >
-                    {item.status}
-                  </button>
-                </div>
-              ))}
+              {calendarDays.map((item, idx) => {
+                // 予約状況に応じてボタンの色やスタイルを微調整（残りわずかの場合は少し温かみのある色味に）
+                const isLimited = item.status === '残りわずか';
+                return (
+                  <div key={idx} className={`border rounded-xl p-2.5 text-center flex flex-col justify-between transition ${
+                    isLimited 
+                      ? 'border-amber-200 bg-amber-50/40 hover:bg-amber-50/70' 
+                      : 'border-emerald-200 bg-emerald-50/30 hover:bg-emerald-50/60'
+                  }`}>
+                    <span className="text-xs font-bold text-slate-700 mb-1.5 block">{item.date}</span>
+                    <button
+                      onClick={() => handleOpenBooking(item.date)}
+                      className={`text-xs font-bold py-1.5 px-2 rounded-lg transition ${
+                        isLimited 
+                          ? 'bg-amber-100 hover:bg-amber-200 text-amber-800' 
+                          : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
+                      }`}
+                    >
+                      {item.status}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </main>
