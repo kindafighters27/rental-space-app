@@ -605,6 +605,26 @@ export default function V3RentalSpacePage() {
     return parsed.yearMonth === monthStr;
   };
 
+  // 自動賃料計算ヘルパー（1回目は¥5,000、2回目以降は1日あたり¥2,000）
+  // 予約日を日付の早い順にソートし、1日目は5000円、2日目以降は2000円を加算
+  const calculateAutoRentForMonth = (monthStr: string) => {
+    const mBookings = adminBookings.filter((b) => matchMonth(b.date, monthStr) && b.status !== 'cancelled');
+    // ユニークな予約日（日付の早い順にソート）を取得
+    const uniqueDays = Array.from(new Set(mBookings.map((b) => b.date.split(' ')[0]))).sort((a, b) => {
+      const dayA = parseInt(a.split('-')[1] || a.split('-')[0], 10);
+      const dayB = parseInt(b.split('-')[1] || b.split('-')[0], 10);
+      return dayA - dayB;
+    });
+
+    if (uniqueDays.length === 0) return 0;
+    // 1回目は5000円、2回目以降は各2000円
+    let total = 5000;
+    if (uniqueDays.length > 1) {
+      total += (uniqueDays.length - 1) * 2000;
+    }
+    return total;
+  };
+
   // ソート切り替えハンドラー
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -1039,10 +1059,8 @@ export default function V3RentalSpacePage() {
                     const monthStr = `${selectedYear}-${m < 10 ? '0' + m : m}`;
                     const exp = expenses[monthStr] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
                     
-                    // 自動賃料（有効な予約がある日数 × ¥2,000）をリアルタイム加算
-                    const mValidBookings = adminBookings.filter((b) => matchMonth(b.date, monthStr) && b.status !== 'cancelled');
-                    const uniqueBookingDays = new Set(mValidBookings.map((b) => b.date.split(' ')[0])).size;
-                    const autoRent = uniqueBookingDays * 2000;
+                    // 自動賃料（1回目¥5,000 + 2回目以降各¥2,000）をリアルタイム加算
+                    const autoRent = calculateAutoRentForMonth(monthStr);
 
                     yearRent += Number(exp.rent || 0) + autoRent;
                     yearStaff += Number(exp.staff || 0);
@@ -1130,10 +1148,12 @@ export default function V3RentalSpacePage() {
                   const mSales = mBookings.reduce((acc, b) => acc + Number(b.total_price || 0), 0);
                   const mExp = expenses[selectedMonth] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
                   
-                  // 自動賃料の計算：その月に有効な予約が入っている日（日付単位）の数 × ¥2,000
-                  const uniqueBookingDays = new Set(mBookings.map((b) => b.date.split(' ')[0])).size;
-                  const autoRent = uniqueBookingDays * 2000;
+                  // 自動賃料の計算：1回目は5000円、2回目以降は各2000円
+                  const autoRent = calculateAutoRentForMonth(selectedMonth);
                   const totalRent = Number(mExp.rent || 0) + autoRent;
+
+                  // ユニークな予約日数を計算
+                  const uniqueBookingDays = new Set(mBookings.map((b) => b.date.split(' ')[0])).size;
 
                   const totalExp = totalRent + Number(mExp.staff) + Number(mExp.drink) + Number(mExp.wifi) + Number(mExp.equipment);
                   const mProfit = mSales - totalExp;
@@ -1146,19 +1166,15 @@ export default function V3RentalSpacePage() {
                           <span className="text-lg font-bold text-slate-900">¥{mSales.toLocaleString()}</span>
                         </div>
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
-                          <span className="text-xs text-slate-500 block mb-1">賃料 (手動 + 自動¥{autoRent.toLocaleString()})</span>
+                          <span className="text-xs text-slate-500 block mb-1">賃料 (手動 + 自動)</span>
                           <input
                             type="text"
-                            value={mExp.rent === 0 ? '' : Number(mExp.rent).toLocaleString()}
-                            onChange={(e) => {
-                              const rawVal = e.target.value.replace(/,/g, '');
-                              const numVal = rawVal === '' ? 0 : Number(rawVal);
-                              if (!isNaN(numVal)) handleExpenseChange(selectedMonth, 'rent', numVal);
-                            }}
-                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-right"
+                            value={totalRent === 0 ? '' : Number(totalRent).toLocaleString()}
+                            readOnly
+                            className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-slate-100 font-bold text-right cursor-not-allowed"
                             placeholder="0"
                           />
-                          <span className="text-[10px] text-emerald-700 font-bold block mt-1">※予約日数({uniqueBookingDays}日)×2000円=¥{autoRent.toLocaleString()}自動加算中</span>
+                          <span className="text-[10px] text-emerald-700 font-bold block mt-1">※1回目¥5000+2回目以降各¥2000=¥{autoRent.toLocaleString()}自動加算中</span>
                         </div>
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
                           <span className="text-xs text-slate-500 block mb-1">人件費</span>
