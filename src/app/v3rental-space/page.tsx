@@ -447,8 +447,10 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 管理者確認チェックボックス切り替え（チェックを入れるとconfirmed: 'true'（本予約）に更新）
-  const handleToggleConfirmed = async (id: string, currentConfirmedVal: any) => {
+  // 管理者確認チェックボックス切り替え（チェックを入れるとconfirmed: 'true'（本予約）に更新し、鍵番号・資料リンク付きの確定メールを自動送信）
+  const handleToggleConfirmed = async (bookingItem: any) => {
+    const id = bookingItem.id;
+    const currentConfirmedVal = bookingItem.confirmed;
     const isCurrentlyChecked = currentConfirmedVal === true || currentConfirmedVal === 'true';
     const newConfirmedVal = !isCurrentlyChecked; // true または false
 
@@ -462,6 +464,35 @@ export default function V3RentalSpacePage() {
         .eq('id', id);
 
       if (error) throw error;
+
+      // チェックが新しく「ON（確認済＝本予約確定）」になった場合のみ、鍵番号と資料リンク付きメールを自動送信
+      if (newConfirmedVal) {
+        try {
+          const origin = window.location.origin;
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: 'booking_confirmed',
+              date: bookingItem.date,
+              startTime: bookingItem.start_time,
+              endTime: bookingItem.end_time,
+              name: bookingItem.name,
+              email: bookingItem.email,
+              totalPrice: bookingItem.total_price,
+              keyNumber: '1234', // 固定の鍵ロック番号
+              kiyakuUrl: `${origin}/kiyaku2026.pdf`,
+              hausururuUrl: `${origin}/hausururu2026_COCOKARA.pdf`,
+              taishuruUrl: `${origin}/taishuru2026.pdf`,
+            }),
+          });
+        } catch (mailErr) {
+          console.warn('確定メールの自動送信に失敗しましたが、ステータス更新は完了しています。', mailErr);
+        }
+      }
+
       await fetchAllBookingsForCheck();
     } catch (err) {
       console.error('確認ステータス更新エラー:', err);
@@ -975,7 +1006,7 @@ export default function V3RentalSpacePage() {
                               <input
                                 type="checkbox"
                                 checked={isConfirmed}
-                                onChange={() => handleToggleConfirmed(b.id, b.confirmed)}
+                                onChange={() => handleToggleConfirmed(b)}
                                 className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                               />
                               <span>確認済</span>
@@ -1368,7 +1399,7 @@ export default function V3RentalSpacePage() {
                                         <input
                                           type="checkbox"
                                           checked={isConfirmed}
-                                          onChange={() => handleToggleConfirmed(b.id, b.confirmed)}
+                                          onChange={() => handleToggleConfirmed(b)}
                                           className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                                         />
                                         <span>確認済</span>
