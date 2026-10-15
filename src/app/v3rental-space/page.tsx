@@ -303,7 +303,7 @@ export default function V3RentalSpacePage() {
             notes: notes || null,
             total_price: price,
             status: 'confirmed',
-            confirmed: false
+            confirmed: 'false' // 初期状態は未確認（空欄）
           }
         ]);
 
@@ -447,16 +447,18 @@ export default function V3RentalSpacePage() {
     }
   };
 
-  // 管理者確認チェックボックス切り替え
-  const handleToggleConfirmed = async (id: string, currentConfirmed: boolean) => {
-    const newConfirmed = !currentConfirmed;
+  // 管理者確認チェックボックス切り替え（チェックを入れるとconfirmed: 'true'（本予約）に更新）
+  const handleToggleConfirmed = async (id: string, currentConfirmedVal: any) => {
+    const isCurrentlyChecked = currentConfirmedVal === true || currentConfirmedVal === 'true';
+    const newConfirmedVal = !isCurrentlyChecked; // true または false
+
     setAdminBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, confirmed: newConfirmed } : b))
+      prev.map((b) => (b.id === id ? { ...b, confirmed: newConfirmedVal } : b))
     );
     try {
       const { error } = await supabase
         .from('poker_bookings')
-        .update({ confirmed: newConfirmed })
+        .update({ confirmed: newConfirmedVal })
         .eq('id', id);
 
       if (error) throw error;
@@ -606,10 +608,8 @@ export default function V3RentalSpacePage() {
   };
 
   // 自動賃料計算ヘルパー（1回目は¥5,000、2回目以降は1日あたり¥2,000）
-  // 予約日を日付の早い順にソートし、1日目は5000円、2日目以降は2000円を加算
   const calculateAutoRentForMonth = (monthStr: string) => {
     const mBookings = adminBookings.filter((b) => matchMonth(b.date, monthStr) && b.status !== 'cancelled');
-    // ユニークな予約日（日付の早い順にソート）を取得
     const uniqueDays = Array.from(new Set(mBookings.map((b) => b.date.split(' ')[0]))).sort((a, b) => {
       const dayA = parseInt(a.split('-')[1] || a.split('-')[0], 10);
       const dayB = parseInt(b.split('-')[1] || b.split('-')[0], 10);
@@ -617,7 +617,6 @@ export default function V3RentalSpacePage() {
     });
 
     if (uniqueDays.length === 0) return 0;
-    // 1回目は5000円、2回目以降は各2000円
     let total = 5000;
     if (uniqueDays.length > 1) {
       total += (uniqueDays.length - 1) * 2000;
@@ -866,7 +865,7 @@ export default function V3RentalSpacePage() {
                     </tr>
                   ) : (
                     filteredAdminBookings.map((b) => {
-                      const isConfirmed = Boolean(b.confirmed);
+                      const isConfirmed = b.confirmed === true || b.confirmed === 'true';
                       const isEditing = editingRowId === b.id;
 
                       if (isEditing) {
@@ -926,7 +925,7 @@ export default function V3RentalSpacePage() {
                                 onChange={(e) => setEditRowData({ ...editRowData, status: e.target.value })}
                                 className="border border-slate-300 rounded p-1 text-xs bg-white"
                               >
-                                <option value="confirmed">仮予約</option>
+                                <option value="confirmed">本予約 / 仮予約</option>
                                 <option value="cancelled">キャンセル</option>
                               </select>
                             </td>
@@ -965,6 +964,8 @@ export default function V3RentalSpacePage() {
                           <td className="p-3 whitespace-nowrap">
                             {b.status === 'cancelled' ? (
                               <span className="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold">キャンセル</span>
+                            ) : isConfirmed ? (
+                              <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-bold">本予約</span>
                             ) : (
                               <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold">仮予約</span>
                             )}
@@ -974,7 +975,7 @@ export default function V3RentalSpacePage() {
                               <input
                                 type="checkbox"
                                 checked={isConfirmed}
-                                onChange={() => handleToggleConfirmed(b.id, isConfirmed)}
+                                onChange={() => handleToggleConfirmed(b.id, b.confirmed)}
                                 className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                               />
                               <span>確認済</span>
@@ -1059,7 +1060,6 @@ export default function V3RentalSpacePage() {
                     const monthStr = `${selectedYear}-${m < 10 ? '0' + m : m}`;
                     const exp = expenses[monthStr] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
                     
-                    // 自動賃料（1回目¥5,000 + 2回目以降各¥2,000）をリアルタイム加算
                     const autoRent = calculateAutoRentForMonth(monthStr);
 
                     yearRent += Number(exp.rent || 0) + autoRent;
@@ -1148,11 +1148,8 @@ export default function V3RentalSpacePage() {
                   const mSales = mBookings.reduce((acc, b) => acc + Number(b.total_price || 0), 0);
                   const mExp = expenses[selectedMonth] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
                   
-                  // 自動賃料の計算：1回目は5000円、2回目以降は各2000円
                   const autoRent = calculateAutoRentForMonth(selectedMonth);
                   const totalRent = Number(mExp.rent || 0) + autoRent;
-
-                  // ユニークな予約日数を計算
                   const uniqueBookingDays = new Set(mBookings.map((b) => b.date.split(' ')[0])).size;
 
                   const totalExp = totalRent + Number(mExp.staff) + Number(mExp.drink) + Number(mExp.wifi) + Number(mExp.equipment);
@@ -1252,16 +1249,18 @@ export default function V3RentalSpacePage() {
                               <th className="p-3">メールアドレス</th>
                               <th className="p-3">スペース</th>
                               <th className="p-3">ステータス</th>
+                              <th className="p-3 text-center">確認</th>
                               <th className="p-3 text-center">操作</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {adminBookings.filter((b) => matchMonth(b.date, selectedMonth)).length === 0 ? (
                               <tr>
-                                <td colSpan={8} className="p-6 text-center text-slate-400">該当する月の予約はありません。</td>
+                                <td colSpan={9} className="p-6 text-center text-slate-400">該当する月の予約はありません。</td>
                               </tr>
                             ) : (
                               adminBookings.filter((b) => matchMonth(b.date, selectedMonth)).map((b) => {
+                                const isConfirmed = b.confirmed === true || b.confirmed === 'true';
                                 const isEditing = editingRowId === b.id;
 
                                 if (isEditing) {
@@ -1321,10 +1320,11 @@ export default function V3RentalSpacePage() {
                                           onChange={(e) => setEditRowData({ ...editRowData, status: e.target.value })}
                                           className="border border-slate-300 rounded p-1 text-xs bg-white"
                                         >
-                                          <option value="confirmed">仮予約</option>
+                                          <option value="confirmed">本予約 / 仮予約</option>
                                           <option value="cancelled">キャンセル</option>
                                         </select>
                                       </td>
+                                      <td className="p-2 text-center">-</td>
                                       <td className="p-2 text-center whitespace-nowrap space-x-1">
                                         <button
                                           type="button"
@@ -1357,9 +1357,22 @@ export default function V3RentalSpacePage() {
                                     <td className="p-3 whitespace-nowrap">
                                       {b.status === 'cancelled' ? (
                                         <span className="bg-rose-100 text-rose-700 text-xs px-2 py-0.5 rounded font-bold">キャンセル</span>
+                                      ) : isConfirmed ? (
+                                        <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded font-bold">本予約</span>
                                       ) : (
                                         <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded font-bold">仮予約</span>
                                       )}
+                                    </td>
+                                    <td className="p-3 text-center whitespace-nowrap">
+                                      <label className="flex items-center justify-center space-x-1 cursor-pointer text-xs text-slate-600">
+                                        <input
+                                          type="checkbox"
+                                          checked={isConfirmed}
+                                          onChange={() => handleToggleConfirmed(b.id, b.confirmed)}
+                                          className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                        />
+                                        <span>確認済</span>
+                                      </label>
                                     </td>
                                     <td className="p-3 text-center whitespace-nowrap">
                                       <button
