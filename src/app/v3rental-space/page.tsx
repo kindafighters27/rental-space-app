@@ -1460,7 +1460,7 @@ export default function V3RentalSpacePage() {
             <h2 className="text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">
               設備・備品・サービス
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
               <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
                 <span className="text-2xl mb-1">🚪</span>
                 <span className="text-xs md:text-sm font-medium text-slate-700">個室 (壁・扉あり)</span>
@@ -1476,6 +1476,14 @@ export default function V3RentalSpacePage() {
               <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
                 <span className="text-2xl mb-1">❄️</span>
                 <span className="text-xs md:text-sm font-medium text-slate-700">エアコン (冷暖房)</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+                <span className="text-2xl mb-1">🗑️</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">ゴミ持ち帰り</span>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-slate-50/50">
+                <span className="text-2xl mb-1">🍱</span>
+                <span className="text-xs md:text-sm font-medium text-slate-700">飲食可</span>
               </div>
             </div>
 
