@@ -1038,7 +1038,13 @@ export default function V3RentalSpacePage() {
                   for (let m = 1; m <= 12; m++) {
                     const monthStr = `${selectedYear}-${m < 10 ? '0' + m : m}`;
                     const exp = expenses[monthStr] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
-                    yearRent += Number(exp.rent || 0);
+                    
+                    // 自動賃料（有効な予約がある日数 × ¥2,000）をリアルタイム加算
+                    const mValidBookings = adminBookings.filter((b) => matchMonth(b.date, monthStr) && b.status !== 'cancelled');
+                    const uniqueBookingDays = new Set(mValidBookings.map((b) => b.date.split(' ')[0])).size;
+                    const autoRent = uniqueBookingDays * 2000;
+
+                    yearRent += Number(exp.rent || 0) + autoRent;
                     yearStaff += Number(exp.staff || 0);
                     yearDrink += Number(exp.drink || 0);
                     yearWifi += Number(exp.wifi || 0);
@@ -1058,7 +1064,7 @@ export default function V3RentalSpacePage() {
                           </span>
                         </div>
                         <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                          <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 経費年間合計</span>
+                          <span className="text-xs text-slate-500 font-medium block mb-1">{selectedYear}年 経費年間合計 (自動賃料込)</span>
                           <span className="text-2xl md:text-3xl font-bold text-slate-700">
                             ¥{yearTotalExp.toLocaleString()}
                           </span>
@@ -1075,7 +1081,7 @@ export default function V3RentalSpacePage() {
                         <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">{selectedYear}年 各経費の年間内訳</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
                           <div className="bg-white border border-slate-200 rounded-lg p-3">
-                            <span className="text-slate-500 block mb-1">賃料年間計</span>
+                            <span className="text-slate-500 block mb-1">賃料年間計 (自動込)</span>
                             <span className="font-bold text-slate-900 text-sm">¥{yearRent.toLocaleString()}</span>
                           </div>
                           <div className="bg-white border border-slate-200 rounded-lg p-3">
@@ -1123,7 +1129,13 @@ export default function V3RentalSpacePage() {
                   const mBookings = adminBookings.filter((b) => matchMonth(b.date, selectedMonth) && b.status !== 'cancelled');
                   const mSales = mBookings.reduce((acc, b) => acc + Number(b.total_price || 0), 0);
                   const mExp = expenses[selectedMonth] || { rent: 0, staff: 0, drink: 0, wifi: 0, equipment: 0 };
-                  const totalExp = Number(mExp.rent) + Number(mExp.staff) + Number(mExp.drink) + Number(mExp.wifi) + Number(mExp.equipment);
+                  
+                  // 自動賃料の計算：その月に有効な予約が入っている日（日付単位）の数 × ¥2,000
+                  const uniqueBookingDays = new Set(mBookings.map((b) => b.date.split(' ')[0])).size;
+                  const autoRent = uniqueBookingDays * 2000;
+                  const totalRent = Number(mExp.rent || 0) + autoRent;
+
+                  const totalExp = totalRent + Number(mExp.staff) + Number(mExp.drink) + Number(mExp.wifi) + Number(mExp.equipment);
                   const mProfit = mSales - totalExp;
 
                   return (
@@ -1134,7 +1146,7 @@ export default function V3RentalSpacePage() {
                           <span className="text-lg font-bold text-slate-900">¥{mSales.toLocaleString()}</span>
                         </div>
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
-                          <span className="text-xs text-slate-500 block mb-1">賃料</span>
+                          <span className="text-xs text-slate-500 block mb-1">賃料 (手動 + 自動¥{autoRent.toLocaleString()})</span>
                           <input
                             type="text"
                             value={mExp.rent === 0 ? '' : Number(mExp.rent).toLocaleString()}
@@ -1146,6 +1158,7 @@ export default function V3RentalSpacePage() {
                             className="w-full border border-slate-300 rounded-lg p-1.5 text-xs bg-white text-right"
                             placeholder="0"
                           />
+                          <span className="text-[10px] text-emerald-700 font-bold block mt-1">※予約日数({uniqueBookingDays}日)×2000円=¥{autoRent.toLocaleString()}自動加算中</span>
                         </div>
                         <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
                           <span className="text-xs text-slate-500 block mb-1">人件費</span>
@@ -1206,7 +1219,7 @@ export default function V3RentalSpacePage() {
                       </div>
 
                       <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm">
-                        <span className="font-bold text-slate-700">経費合計: ¥{totalExp.toLocaleString()}</span>
+                        <span className="font-bold text-slate-700">経費合計 (賃料自動込): ¥{totalExp.toLocaleString()}</span>
                         <span className="font-bold text-slate-900">
                           月間 粗利 (利益) : <span className="text-emerald-700 text-lg md:text-xl">¥{mProfit.toLocaleString()}</span>
                         </span>
@@ -1503,7 +1516,6 @@ export default function V3RentalSpacePage() {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
               {calendarDays.map((item, idx) => {
-                // 予約状況に応じてボタンの色やスタイルを微調整（残りわずかの場合は少し温かみのある色味に）
                 const isLimited = item.status === '残りわずか';
                 return (
                   <div key={idx} className={`border rounded-xl p-2.5 text-center flex flex-col justify-between transition ${
